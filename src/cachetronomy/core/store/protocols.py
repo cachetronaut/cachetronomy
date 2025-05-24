@@ -1,4 +1,4 @@
-from typing import Protocol
+from typing import Protocol, Set
 
 from cachetronomy.core.types.profiles import Profile
 from cachetronomy.core.types.schemas import (
@@ -56,7 +56,7 @@ class StoreProtocol(Protocol):
         pass
     def log_access(self, entry: AccessLogEntry, batch: bool = True) -> None: 
         pass
-    def log_access_batch(self, entries: set[AccessLogEntry]) -> None: 
+    def log_access_batch(self, entries: Set[AccessLogEntry]) -> None: 
         pass
     def stats(self, limit: int = 10) -> list[AccessLogEntry] | None: 
         pass
@@ -74,7 +74,7 @@ class StoreProtocol(Protocol):
         batch: bool = True
     ) -> None: 
         pass
-    def log_eviction_batch(self, entries: set[EvictionLogEntry]) -> None: 
+    def log_eviction_batch(self, entries: Set[EvictionLogEntry]) -> None: 
         pass
     def eviction_logs(
         self, 
