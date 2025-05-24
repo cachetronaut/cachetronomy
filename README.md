@@ -1,5 +1,5 @@
 # Cachetronomy
-A lightweight, SQLite-backed cache for Python with first-class sync **and** async support. Features TTL and memory-pressure eviction, persistent hot-key tracking, pluggable serialization, a decorator API and a CLI.
+A lightweight, SQLite-backed cache for Python with first-class sync **and** async support. Features TTL and memory-pressure eviction, persistent hot-key tracking, pluggable serialization, a decorator API and a CLI (coming soon).
 
 ## Why Cachetronomy?
 - **Persistent**: stores all entries in SQLite; survives process restarts, no separate server.
