@@ -1,0 +1,59 @@
+# Byte‐compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+.pytest_cache/
+.cache/
+htmlcov/
+.coverage
+.coverage.*
+nosetests.xml
+coverage.xml
+
+# Virtual environments
+.venv/
+env/
+venv/
+ENV/
+.env/
+
+# IDEs and editors
+.idea/
+.vscode/
+*.sublime-*
+
+# macOS
+.DS_Store
+
+# Lock files
+uv.lock
+Pipfile.lock
+
+# Test data / databases
+tests/cachetronomy.db*
+dummy_data.json
+
+# local stress tests / fixtures
+tests/stress_*.py
+tests/profiles.yaml
+
+# MyPy
+.mypy_cache/
+
+# Logs
+*.log

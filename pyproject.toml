@@ -1,0 +1,77 @@
+[project]
+name            = "cachetronomy"
+version         = "0.1.0"
+description     = "A lightweight, SQLite-backed cache for Python with first-class sync and async support."
+readme          = "README.md"
+license         = { file = "LICENSE" }
+license-files = ["LICEN[CS]E*"]
+authors         = [
+  { name = "Abraham Castro-Vela", email = "abrahamacastro+code@gmail.com" },
+]
+requires-python = ">=3.9,<4.0"
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Framework :: AsyncIO",
+    "Framework :: Pydantic",
+    "Framework :: Pydantic :: 1",
+    "Framework :: Pydantic :: 2",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development",
+    "Topic :: System :: Distributed Computing",
+    "Topic :: System :: Monitoring",
+    "Topic :: Utilities",
+    "Typing :: Typed",
+]
+
+dependencies = [
+  "aiosqlite>=0.20,<1.0",
+  "psutil>=5.9,<8.0",
+  "python-dateutil>=2.8,<3.0",
+  "msgpack>=1.0,<2.0",
+  "pydantic>=2.0,<3.0",
+  "pydantic-settings>=2.0,<3.0",
+  "pyyaml>=6.0,<7.0",
+  "python-dotenv>=1.1.0",
+  "typing-extensions>=4.13.2",
+]
+
+[project.urls]
+Homepage = "https://github.com/cachetronaut/cachetronomy"
+Issues = "https://github.com/cachetronaut/cachetronomy/issues"
+Documentation = "https://github.com/cachetronaut/cachetronomy"
+Repository = "https://github.com/cachetronaut/cachetronomy"
+
+[build-system]
+requires = ["hatchling>=1.10,<2.0"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+    "pytest-asyncio>=0.26.0",
+]
+fast = [
+    "msgpack>=1.1.0",
+    "orjson>=3.10.16",
+]
+lint = [
+    "ruff>=0.11.11",
+]
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true
