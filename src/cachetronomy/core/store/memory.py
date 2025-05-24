@@ -60,4 +60,4 @@ class MemoryCache:
 
     def keys(self) -> list[str]:
         with self._lock:
-            return self._store.keys()
+            return list(self._store.keys())
