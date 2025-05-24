@@ -271,7 +271,10 @@ class Cachetronaut(Cachetronomer):
 
     def items(self) -> list[CacheEntry] | None:
         return self.store.items()
-    
+
+    def key_metadata(self, key: str) -> CacheMetadata | None:
+        return self.store.key_metadata(key)
+
     def store_metadata(self) -> list[CacheMetadata] | None:
         return self.store.metadata()
 

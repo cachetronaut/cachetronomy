@@ -172,6 +172,10 @@ class Cachetronomer(ABC):
         pass
 
     @abstractmethod
+    def key_metadata(self, key: str) -> CacheMetadata | None:
+        pass
+
+    @abstractmethod
     def store_metadata(self) -> list[CacheMetadata] | None:
         pass
 
