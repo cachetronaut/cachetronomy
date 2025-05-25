@@ -29,10 +29,6 @@ class TTLEvictionThread(threading.Thread):
                 logging.exception('Error in TTL cleanup')
 
     def run(self) -> None:
-        try:
-            self._dispatch()
-        except Exception:
-            logging.exception('TTLEvictionThread initial cleanup failed')
         while not self._stop_event.wait(self.ttl_cleanup_interval):
             try:
                 self._dispatch()
