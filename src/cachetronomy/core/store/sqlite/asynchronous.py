@@ -3,6 +3,7 @@ import aiosqlite
 import json
 
 from datetime import datetime
+from typing import Any
 from pydantic import ValidationError
 
 from cachetronomy.core.types.profiles import Profile
@@ -11,7 +12,9 @@ from cachetronomy.core.types.schemas import (
     CacheEntry, 
     ExpiredEntry,
     AccessLogEntry, 
-    EvictionLogEntry
+    EvictionLogEntry,
+    CustomQuery,
+    T
 )
 from cachetronomy.core.store.utils.batch_logger import AsyncBatchLogger
 from cachetronomy.core.utils.time_utils import _now
@@ -584,3 +587,34 @@ class AsyncSQLiteStore:
                 ) for entry in entries
             ]
         )
+
+    # ——— Experts-Only API ——— 
+
+    async def custom_query(
+        self, 
+        custom_query: CustomQuery
+    ) -> list[T] | list[dict[str, Any]] | int:
+        """
+            ⚠️ Experimental: Execute a custom SQL query against the backend store.
+
+            This low-level utility enables direct querying of the underlying db.
+            It supports parameterized `SELECT`, `DELETE`, `UPDATE`, `INSERT`, 
+            `DROP`, and `ALTER` statements, and can optionally deserialize rows 
+            into typed Pydantic models if a `schema_type` is provided.
+
+            #### WARNING:
+                This feature is currently in an **alpha** state and is intended 
+                strictly for **non-production use**. Behavior, interfaces, and 
+                return formats are subject to change. Use it only for development,
+                testing, or internal analysis where full control over the SQL 
+                query is needed.
+        """
+        async with self._conn.execute(custom_query.query, custom_query.params) as cursor:
+            if custom_query.autocommit:
+                await self._conn.commit()
+            if custom_query.query.lstrip().lower().startswith('select'):
+                rows = await cursor.fetchall()
+                if custom_query.schema_type is not None:
+                    return [custom_query.schema_type(**_clean_tags(row)) for row in rows]
+                return [_clean_tags(row) for row in rows]
+            return cursor.rowcount

@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import json
 from datetime import datetime
-from typing import Any
+from typing import Any, Sequence, Type, TypeVar
 
 from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import SettingsConfigDict
+
 
 class CacheMetadata(BaseModel):
     key: str
@@ -53,3 +56,35 @@ class EvictionLogEntry(BaseModel):
     evicted_by_profile: str
 
     model_config: SettingsConfigDict = SettingsConfigDict(frozen=True)
+
+
+T = TypeVar('T')
+
+class CustomQuery(BaseModel):
+    query: str
+    params: Sequence[Any] | None = ()
+    schema_type: Type[T] | None = Field(
+        description='''
+                    If provided, rows are deserialized into this model; 
+                    otherwise the row dicts are returned.
+                    '''
+    )
+    autocommit: bool = Field(
+        default=False,
+        description='''
+                    Set True for statements that mutate the DB so a COMMIT is issued.
+                    '''
+    )
+
+    @model_validator(mode='after')
+    def _warn_on_write_without_commit(self):
+        cmds: set = {'insert', 'update', 'delete', 'drop', 'alter'}
+        lowered = self.query.lstrip().lower()
+        if not self.autocommit and any(lowered.startswith(cmd) for cmd in cmds):
+            raise ValueError(
+                '''
+                Write-query detected: set autocommit=True 
+                or manage the transaction yourself.
+                '''
+            )
+        return self
