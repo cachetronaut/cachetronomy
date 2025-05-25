@@ -16,8 +16,8 @@ pip install cachetronomy[fast]
 ```
 ## 📦 Core Features
 ### Cache clients
-- **Sync**: `from cachetronomy.core.cache.cachetronaut import Cachetronaut`
-- **Async**: `from cachetronomy.core.cache.cachetronaut_async import AsyncCachetronaut`
+- **Sync**: `from cachetronomy import Cachetronaut`
+- **Async**: `from cachetronomy import AsyncCachetronaut`
 Both share almost 1:1 APIs:
 ### Decorator API
 ```python
