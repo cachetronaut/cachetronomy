@@ -1,6 +1,6 @@
 [project]
 name            = "cachetronomy"
-version         = "0.1.1"
+version         = "0.1.2"
 description     = "A lightweight, SQLite-backed cache for Python with first-class sync and async support."
 readme          = "README.md"
 license         = { file = "LICENSE" }
@@ -45,6 +45,7 @@ dependencies = [
   "pyyaml>=6.0,<7.0",
   "python-dotenv>=1.1.0",
   "typing-extensions>=4.13.2",
+  "orjson>=3.10.16",
 ]
 
 [project.urls]

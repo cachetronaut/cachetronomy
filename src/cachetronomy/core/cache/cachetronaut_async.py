@@ -144,7 +144,7 @@ class AsyncCachetronaut(Cachetronomer):
         )
         self.memory_eviction_thread.start()
 
-    async def shutdown(self):
+    async def shutdown(self): # TODO: why isn't this shutting down?
         if getattr(self, 'ttl_eviction_thread', None):
             self.ttl_eviction_thread.stop()
             self.ttl_eviction_thread.join()
@@ -228,6 +228,9 @@ class AsyncCachetronaut(Cachetronomer):
     
     async def store_keys(self) -> list[str] | None:
         return await self.store.keys()
+
+    async def all_keys(self) -> list[str] | None:
+        return await self.memory_keys() + await self.store_keys()
 
     async def evict(self, key: str) -> None:
         self._memory.evict(key, reason='user_eviction')
