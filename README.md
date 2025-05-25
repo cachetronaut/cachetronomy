@@ -109,6 +109,58 @@ obj2 = deserialize(payload, fmt, model_type=MyPydanticModel)
 ```
 Override globally with `CACHE_SERIALIZER=json|orjson|msgpack`.
 
+# Cachetronomy Tables
+Here's a breakdown of the **tables and columns** you will have in your `cachetronomy` cache. 
+### 🗃️ `cache`
+Stores serialized cached objects, their TTL metadata, tags, and versioning.
+
+|Column            |Type        |Description                                         |
+|------------------|------------|----------------------------------------------------|
+|`key`             |TEXT (PK 🔑)|Unique cache key                                    |
+|`data`            |BLOB        |Serialized value (orjson, msgpack, json)            |
+|`fmt`             |TEXT        |Serialization format used                           |
+|`expire_at`       |DATETIME    |UTC expiry time.                                    |
+|`tags`            |TEXT        |Serialized list of tags (usually JSON or CSV format)|
+|`version`         |INTEGER     |Version number for schema evolution/versioning      |
+|`saved_by_profile`|TEXT        |Profile name that created or last updated this entry|
+
+### 🧾 `access_log`
+Tracks when a key was accessed and how frequently.
+
+| Column                     | Type         | Description                       |
+| -------------------------- | ------------ | --------------------------------- |
+| `key`                      | TEXT (PK 🔑) | Cache key                         |
+| `access_count`             | INTEGER      | Number of times accessed          |
+| `last_accessed`            | DATETIME     | Most recent access time           |
+| `last_accessed_by_profile` | TEXT         | Profile that made the last access |
+
+### 🚮 `eviction_log`
+
+Tracks key eviction events and their reasons (manual, TTL, memory, tag).
+
+|Column              |Type           |Description                                                 |
+|--------------------|---------------|------------------------------------------------------------|
+|`id`                |INTEGER (PK 🔑)|Autoincrement ID                                            |
+|`key`               |TEXT           |Evicted key                                                 |
+|`evicted_at`        |DATETIME       |Timestamp of eviction                                       |
+|`reason`            |TEXT           |Reason string (`"manual_eviction"`, `"time_eviction"`, etc.)|
+|`last_access_count` |INTEGER        |Final recorded access count before eviction                 |
+|`evicted_by_profile`|TEXT           |Name of profile that triggered the eviction                 |
+
+### 📋 `profiles`
+Holds saved profile configurations for future reuse.
+
+|Column                   |Type        |Description                                      |
+|-------------------------|------------|-------------------------------------------------|
+|`name`                   |TEXT (PK 🔑)|Unique profile name                              |
+|`time_to_live`           |INTEGER     |Default TTL for entries                          |
+|`ttl_cleanup_interval`   |INTEGER     |Frequency in seconds to run TTL cleanup          |
+|`memory_based_eviction`  |BOOLEAN     |Whether memory pressure-based eviction is enabled|
+|`free_memory_target`     |REAL        |MB of free RAM to maintain                       |
+|`memory_cleanup_interval`|INTEGER     |How often to check system memory                 |
+|`max_items_in_memory`    |INTEGER     |Cap for in-RAM cache                             |
+|`tags`                   |TEXT        |Default tags for all entries in this profile     |
+
 ## 🧪 Development & Testing
 ```bash
 git clone https://github.com/cachetronaut/cachetronomy.git
