@@ -8,5 +8,6 @@ Provides synchronous and asynchronous cache clients for easy integration:
 
 from cachetronomy.core.cache.cachetronaut import Cachetronaut
 from cachetronomy.core.cache.cachetronaut_async import AsyncCachetronaut
+from cachetronomy.core.types.profiles import Profile
 
-__all__ = ['Cachetronaut', 'AsyncCachetronaut']
+__all__ = ['Cachetronaut', 'AsyncCachetronaut', 'Profile']
