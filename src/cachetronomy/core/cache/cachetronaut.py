@@ -2,7 +2,6 @@
 import inspect
 from datetime import timedelta
 from typing import Any, TypeVar, ParamSpec
-from collections import OrderedDict
 
 from pydantic import BaseModel
 
@@ -64,15 +63,23 @@ class Cachetronaut(Cachetronomer):
 
     @profile.setter
     def profile(self, prof: str | Profile):
-        if isinstance(prof, str):
-            p = self.store.profile(prof)
-            if p is None:
-                temp = self._current_profile.model_copy(update={'name': prof})
-                p = temp
+        if prof is None:
+            name = 'default'
+        elif isinstance(prof, str):
+            name = prof
         else:
-            p = prof
-        self.store.update_profile_settings(**p.model_dump())
-        self._apply_profile_settings(p)
+            self._current_profile = prof
+            self.store.update_profile_settings(**prof.model_dump())
+            self._apply_profile_settings(prof)
+            self._sync_eviction_threads()
+            return
+        
+        profile = self.store.profile(name)
+        if not profile:
+            profile = Profile(name=name)
+            self.update_active_profile(**profile.model_dump())
+        self._current_profile = profile
+        self._apply_profile_settings(profile)
         self._sync_eviction_threads()
 
     def _apply_profile_settings(self, prof: str | Profile | None):
@@ -255,11 +262,7 @@ class Cachetronaut(Cachetronomer):
         for rec in expired:
             self._memory.evict(rec.key, reason='time_eviction')
 
-    def clear_by_tags(
-        self,
-        tags: list[str],
-        exact_match: bool = False
-    ) -> None:
+    def clear_by_tags(self, tags: list[str], exact_match: bool) -> None:
         removed = self.store.clear_by_tags(tags, exact_match)
         for key in removed:
             self._memory.evict(key, reason='tag_invalidation')
@@ -282,8 +285,8 @@ class Cachetronaut(Cachetronomer):
         self.store.access_logger.flush()
         return self.store.stats(limit)
 
-    def memory_stats(self) -> OrderedDict:
-        return OrderedDict(self._memory.stats())
+    def memory_stats(self) -> list[tuple[str, int]]:
+        return self._memory.stats()
 
     # ——— Access Log API ———
 
@@ -312,7 +315,7 @@ class Cachetronaut(Cachetronomer):
     def delete_profile(self, name: str) -> None:
         self.store.delete_profile(name)
 
-    async def update_active_profile(self, **kwargs) -> None:
+    def update_active_profile(self, **kwargs) -> None:
         new_profile = self.profile.model_copy(update=kwargs)
         self.store.update_profile_settings(**new_profile.model_dump())
         self._apply_profile_settings(new_profile)

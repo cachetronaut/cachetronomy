@@ -37,6 +37,8 @@ class TinyCache(ctr.Cachetronomer):
         return []
     def store_metadata(self, *_a, **_kw):  # type: ignore[override]
         return {}
+    def key_metadata(self, *_a, **_kw):  # type: ignore[override]
+        return {}
     clear_access_logs = delete_access_logs = access_logs
     eviction_logs = clear_eviction_logs = access_logs
     evict = delete = clear_all = clear_by_tags = clear_by_profile = clear_expired = _noop

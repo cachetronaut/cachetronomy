@@ -107,7 +107,64 @@ class AsyncCachetronaut(Cachetronomer):
     def profile(self) -> Profile:
         return self._current_profile
 
-    def _apply_profile_settings(self, profile: Profile):
+    @profile.setter
+    def profile(self, prof: str | Profile):
+        self._track(self._set_profile(prof))
+    
+    async def _ensure_ttl_eviction_thread(self):
+        should_run = getattr(self, 'ttl_cleanup_interval', 0) > 0
+        has_thread = hasattr(self, 'ttl_eviction_thread')
+        if should_run and not has_thread:
+            self.ttl_eviction_thread = TTLEvictionThread(
+                self, 
+                asyncio.get_running_loop(), 
+                self.ttl_cleanup_interval
+            )
+            self.ttl_eviction_thread.start()
+        elif not should_run and has_thread:
+            self.ttl_eviction_thread.stop()
+            del self.ttl_eviction_thread
+
+    async def _ensure_memory_eviction_thread(self):
+        should_run = getattr(self, 'memory_based_eviction', False)
+        has_thread = hasattr(self, 'memory_cleanup_interval')
+        if should_run and not has_thread:
+            self.memory_eviction_thread = MemoryEvictionThread(
+                self,
+                asyncio.get_running_loop(),
+                self.memory_cleanup_interval,
+                self.free_memory_target
+            )
+            self.memory_eviction_thread.start()
+        elif not should_run and has_thread:
+            self.memory_eviction_thread.stop()
+            del self.memory_eviction_thread
+
+    async def _sync_eviction_threads(self):
+        await self._ensure_ttl_eviction_thread()
+        await self._ensure_memory_eviction_thread()
+
+    async def _set_profile(self, prof: str | Profile | None):
+        if prof is None:
+            name = 'default'
+        elif isinstance(prof, str):
+            name = prof
+        else:
+            self._current_profile = prof
+            await self.store.update_profile_settings(**prof.model_dump())
+            await self._apply_profile_settings(prof)
+            await self._sync_eviction_threads()
+            return
+
+        profile = await self.store.profile(name)
+        if not profile:
+            profile = Profile(name=name)
+            await self.update_active_profile(**profile.model_dump())
+        self._current_profile = profile
+        await self._apply_profile_settings(profile)
+        await self._sync_eviction_threads()
+
+    async def _apply_profile_settings(self, profile: Profile):
         self.time_to_live = profile.time_to_live
         self.ttl_cleanup_interval = profile.ttl_cleanup_interval
         self.memory_based_eviction = profile.memory_based_eviction
@@ -118,7 +175,7 @@ class AsyncCachetronaut(Cachetronomer):
 
     async def init_async(self):
         await self.store.init()
-        await self.set_profile(self._init_profile_arg)
+        await self._set_profile(self._init_profile_arg)
         register_callback(lambda key: self._track(
             self.store.log_access( 
                     AccessLogEntry(
@@ -130,21 +187,8 @@ class AsyncCachetronaut(Cachetronomer):
                 )
             )
         )
-        self.ttl_eviction_thread = TTLEvictionThread(
-            self, 
-            asyncio.get_running_loop(), 
-            self.ttl_cleanup_interval
-        )
-        self.ttl_eviction_thread.start()
-        self.memory_eviction_thread = MemoryEvictionThread(
-            self,
-            asyncio.get_running_loop(),
-            self.memory_cleanup_interval,
-            self.free_memory_target
-        )
-        self.memory_eviction_thread.start()
 
-    async def shutdown(self): # TODO: why isn't this shutting down?
+    async def shutdown(self):
         if getattr(self, 'ttl_eviction_thread', None):
             self.ttl_eviction_thread.stop()
             self.ttl_eviction_thread.join()
@@ -282,31 +326,13 @@ class AsyncCachetronaut(Cachetronomer):
     async def get_profile(self, name: str) -> Profile | None:
         return await self.store.profile(name)
 
-    async def set_profile(self, prof: str | Profile | None):
-        if prof is None:
-            name = 'default'
-        elif isinstance(prof, str):
-            name = prof
-        else:
-            self._current_profile = prof
-            await self.store.update_profile_settings(**prof.model_dump())
-            self._apply_profile_settings(prof)
-            return
-
-        profile = await self.store.profile(name)
-        if not profile:
-            profile = Profile(name=name)
-            await self.store.upsert_profile(**profile.model_dump())
-        self._current_profile = profile
-        self._apply_profile_settings(profile)
-
     async def list_profiles(self) -> list[Profile] | None:
         return await self.store.list_profiles()
 
     async def update_active_profile(self, **kwargs) -> None:
         new_profile = self.profile.model_copy(update=kwargs)
         await self.store.update_profile_settings(**new_profile.model_dump())
-        self._apply_profile_settings(new_profile)
+        await self._apply_profile_settings(new_profile)
 
     async def delete_profile(self, name: str) -> None:
         await self.store.delete_profile(name)
