@@ -16,7 +16,7 @@ pip install cachetronomy
 pip install cachetronomy[fast]
 ```
 ## 📦 Core Features
-### Cache clients
+### 🧑‍🚀 Cache clients
 ```python
 # For Sync Client
 from cachetronomy import Cachetronaut
@@ -24,7 +24,7 @@ from cachetronomy import Cachetronaut
 # For Async Client
 from cachetronomy import AsyncCachetronaut
 ```
-### Decorator API
+### 🎍 Decorator API
 ```python
 import time
 import asyncio
@@ -138,7 +138,7 @@ if __name__ == "__main__":
     asyncio.run(async_main())
 ```
 
-## Under the Hood: Core Mechanisms and Code References
+## ⚙ Under the Hood: Core Mechanisms and Code References
 | Mechanism                    | How It Works                                                                                                              |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------|
 | **Key Building**             | Generates a consistent, order-independent key from the function name and its arguments.                                   |
@@ -150,10 +150,9 @@ if __name__ == "__main__":
 | **Manual Eviction**          | Helper methods allow you to remove individual keys or groups of entries whenever you choose.                              |
 | **Hot-Key Tracking**         | Records how frequently each key is accessed so the system knows which items are most important to keep.                   |
 | **Serialization**            | Converts data into a compact binary or JSON-like format before writing it to storage, and remembers which format it used. |
-# Cachetronomy API
+# 🗨 Cachetronomy API
 Quick overview of the public API for both sync (`Cachetronaut`) and async (`AsyncCachetronaut`) clients:
->Note: `Cachetronomer` is the shared base class that encapsulates core caching logic—like memory store management, key building, and eviction hooks—used by both the synchronous and asynchronous cache clients.
-
+>Note: `Cachetronomer` is the shared base class that encapsulates core caching logic used by both the synchronous and asynchronous cache clients.
 | Method                           | Description                                                                                                |
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `__init__`                       | Construct a new cache client with the given database path and settings.                                    |
@@ -189,7 +188,7 @@ Quick overview of the public API for both sync (`Cachetronaut`) and async (`Asyn
 | `delete_profile`                 | Remove a named profile from the `profiles` table.                                                          |
 | `list_profiles`                  | List all saved profiles available in the `profiles` table.                                                 |
 
-# Cachetronomy Tables
+# 🔭 Cachetronomy Tables
 Here's a breakdown of the **tables and columns** you will have in your `cachetronomy` cache.
 ### 🗃️ `cache`
 Stores serialized cached objects, their TTL metadata, tags, and versioning.
