@@ -74,14 +74,21 @@ async def main():
     # 2. Decorate your coroutine—cache results for 10 minutes
     @acachetronaut(time_to_live=600)
     async def become_cachémon_master(id: int) -> Dict[str, Any]:
-        # Welcome to the wonderful world of Cachémon...
-        await asyncio.sleep(1) # Pick your starter Cachémon, I'd start with a 🔥 type...
-        await asyncio.sleep(1) # Go get that first gym badge...
-        await asyncio.sleep(2) # Go get the next seven gym badges...
-        await asyncio.sleep(1) # Beat Blue (for the 100th time)...
-        await asyncio.sleep(1) # Also, you are gonna train if you want to get to the E4...
-        await asyncio.sleep(1) # Now you got to beat the E4...
-        await asyncio.sleep(1) # You did it! you are a Cachémon master!
+        print('Welcome to the wonderful world of Cachémon...')
+        await asyncio.sleep(1)
+        print('Pick your starter Cachémon, I'd start with a 🔥 type...')
+        await asyncio.sleep(1)
+        print('Go get that first gym badge...')
+        await asyncio.sleep(1)
+        print('Go get the next seven gym badges...')
+        await asyncio.sleep(2)
+        print('Beat Blue (for the 100th time)...')
+        await asyncio.sleep(1)
+        print('Also, you are gonna train if you want to get to the E4...')
+        await asyncio.sleep(3)
+        print('Now you got to beat the E4...')
+        await asyncio.sleep(1)
+        print('You did it! you are a Cachémon master!')
         return {
             "id": id,
             "name": "Ash Cache-um",
