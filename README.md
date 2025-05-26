@@ -138,7 +138,7 @@ if __name__ == "__main__":
     asyncio.run(async_main())
 ```
 
-## ⚙ Under the Hood: Core Mechanisms and Code References
+## ⚙ Core Mechanisms
 | Mechanism                    | How It Works                                                                                                              |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------|
 | **Key Building**             | Generates a consistent, order-independent key from the function name and its arguments.                                   |
