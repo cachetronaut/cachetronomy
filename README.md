@@ -142,17 +142,17 @@ if __name__ == "__main__":
 | Mechanism                    | How It Works                                                                                                              |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------|
 | **Key Building**             | Generates a consistent, order-independent key from the function name and its arguments.                                   |
-| **Cache Lookup**             | Checks the in-memory cache first; if the entry is missing or stale, continues to the next storage layer.                  |
-| **Storage**                  | On a miss, stores the newly computed result both in memory (for speed) and in a small on-disk database (for persistence). |
+| **Cache Lookup**             | On `get()`, check the in-memory cache first; if the entry is missing or stale, continues to the next storage layer.                  |
+| **Storage**                  | On `set()`, stores the newly computed result both in memory (for speed) and in a small on-disk database (for persistence). |
 | **Profiles & Settings**      | Lets you switch between saved caching profiles and settings without disrupting running code.                              |
 | **TTL Eviction**             | A background task periodically deletes entries that have exceeded their time-to-live.                                     |
-| **Memory-Pressure Eviction** | nother background task frees up space by evicting the least-used entries when available system memory gets too low.       |
+| **Memory-Pressure Eviction** | Another background task frees up space by evicting the least-used entries when available system memory gets too low.      |
 | **Manual Eviction**          | Helper methods allow you to remove individual keys or groups of entries whenever you choose.                              |
 | **Hot-Key Tracking**         | Records how frequently each key is accessed so the system knows which items are most important to keep.                   |
 | **Serialization**            | Converts data into a compact binary or JSON-like format before writing it to storage, and remembers which format it used. |
->`Cachetronomer` is the shared base class that encapsulates core caching logic—like memory store management, key building, and eviction hooks—used by both the synchronous and asynchronous cache clients.
 # Cachetronomy API
 Quick overview of the public API for both sync (`Cachetronaut`) and async (`AsyncCachetronaut`) clients:
+>Note: `Cachetronomer` is the shared base class that encapsulates core caching logic—like memory store management, key building, and eviction hooks—used by both the synchronous and asynchronous cache clients.
 
 | Method                  | Cachetronaut                      | AsyncCachetronaut                 | Description                                                                                           |
 | ----------------------- | --------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------- |
