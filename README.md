@@ -142,8 +142,8 @@ if __name__ == "__main__":
 | Mechanism                    | How It Works                                                                                                              |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------|
 | **Key Building**             | Generates a consistent, order-independent key from the function name and its arguments.                                   |
-| **Cache Lookup**             | On `get()`, check the in-memory cache first; if the entry is missing or stale, continues to the next storage layer.                  |
-| **Storage**                  | On `set()`, stores the newly computed result both in memory (for speed) and in a small on-disk database (for persistence). |
+| **Cache Lookup**             | On `get()`, check the in-memory cache first; if the entry is missing or stale, continues to the next storage layer.       |
+| **Storage**                  | On `set()`, stores the newly computed result both in memory (for speed) and in a small on-disk database (for persistence).|
 | **Profiles & Settings**      | Lets you switch between saved caching profiles and settings without disrupting running code.                              |
 | **TTL Eviction**             | A background task periodically deletes entries that have exceeded their time-to-live.                                     |
 | **Memory-Pressure Eviction** | Another background task frees up space by evicting the least-used entries when available system memory gets too low.      |
@@ -154,74 +154,74 @@ if __name__ == "__main__":
 Quick overview of the public API for both sync (`Cachetronaut`) and async (`AsyncCachetronaut`) clients:
 >Note: `Cachetronomer` is the shared base class that encapsulates core caching logic—like memory store management, key building, and eviction hooks—used by both the synchronous and asynchronous cache clients.
 
-| Method                  | Cachetronaut                      | AsyncCachetronaut                 | Description                                                                                           |
-| ----------------------- | --------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `__init__`              | `__init__(db_path, …)`            | `__init__(db_path, …)`            | Construct a new cache client with the given database path and settings.                               |
-| `init_async`            | —                                 | `init_async()`                    | (Async only) Initialize any async-specific internals (e.g. connections).                              |
-| `shutdown`              | `shutdown()`                      | `shutdown()`                      | Gracefully stop eviction threads and close the underlying                                       |
-| `set`                   | `set(key, payload, …)`            | `set(key, payload, …)`            | Store a value under `key` with optional TTL, tags, serializer, etc.                                   |
-| `get`                   | `get(key, …)`                     | `get(key, …)`                     | Retrieve a cached entry (or `None` if missing/expired), optionally unmarshaled into a Pydantic model. |
-| `delete`                | `delete(key)`                     | `delete(key)`                     | Remove the given key from the cache immediately.                                                      |
-| `evict`                 | `evict(key)`                      | `evict(key)`                      | Same as `delete` but also logs an eviction event.                                                     |
-| `store_keys`            | `store_keys()`                    | `store_keys()`                    | Return a list of all keys currently persisted in SQLite.                                              |
-| `memory_keys`           | `memory_keys()`                   | `memory_keys()`                   | Return a list of all keys currently held in the in-process memory cache.                              |
-| `all_keys`              | `all_keys()`                      | `all_keys()`                      | List every key in both memory and                                                               |
-| `key_metadata`          | `key_metadata(key)`               | `key_metadata(key)`               | Fetch the metadata (TTL, serialization format, tags, version, etc.) for a single cache key.           |
-| `store_metadata`        | `store_metadata()`                | `store_metadata()`                | Retrieve a list of metadata objects for every entry in the persistent                           |
-| `items`                 | `items()`                         | `items()`                         | List every item in both memory and                                                              |
-| `evict_all`             | `evict_all()`                     | `evict_all()`                     | Evict every entry (logs each eviction) but leaves table structure intact.                             |
-| `clear_all`             | `clear_all()`                     | `clear_all()`                     | Delete all entries from both memory and store without logging individually.                           |
-| `clear_expired`         | `clear_expired()`                 | `clear_expired()`                 | Purge only those entries whose TTL has elapsed.                                                       |
-| `clear_by_tags`         | `clear_by_tags(tags)`             | `clear_by_tags(tags)`             | Remove entries matching any of the provided tags.                                                     |
-| `clear_by_profile`      | `clear_by_profile(name)`          | `clear_by_profile(name)`          | Remove all entries that were saved under the given profile name.                                      |
-| `memory_stats`          | `memory_stats(limit)`             | `memory_stats(limit)`             | Return the top-N hottest keys by in-memory access count.                                              |
-| `store_stats`           | `store_stats(limit)`              | `store_stats(limit)`              | Return the top-N hottest keys by persisted access count.                                              |
-| `access_logs`           | `access_logs()`                   | `access_logs()`                   | Fetch raw access-log rows from SQLite for detailed inspection.                                        |
-| `key_access_logs`       | `key_access_logs(key)`            | `key_access_logs(key)`            | Fetch all access-log entries for a single key.                                                        |
-| `clear_access_logs`     | `clear_access_logs()`             | `clear_access_logs()`             | Delete all access-log rows from the database.                                                         |
-| `delete_access_logs`    | `delete_access_logs(key)`         | `delete_access_logs(key)`         | Delete all access-log rows for the given key.                                                         |
-| `eviction_logs`         | `eviction_logs(limit)`            | `eviction_logs(limit)`            | Fetch recent eviction events (manual, TTL, memory-pressure, etc.).                                    |
-| `clear_eviction_logs`   | `clear_eviction_logs()`           | `clear_eviction_logs()`           | Delete all recorded eviction events.                                                                  |
-| `profile`               | `@property` & `@profile.setter`   | `@property` & `@profile.setter`   | Get or switch to a named Profile, applying its settings and restarting eviction threads.              |
-| `update_active_profile` | `update_active_profile(**kwargs)` | `update_active_profile(**kwargs)` | Modify the active profile’s settings in-place and persist them.                                       |
-| `get_profile`           | `get_profile(name)`               | `get_profile(name)`               | Load the settings of a named profile without applying them.                                           |
-| `delete_profile`        | `delete_profile(name)`            | `delete_profile(name)`            | Remove a named profile from the `profiles` table.                                                     |
-| `list_profiles`         | `list_profiles()`                 | `list_profiles()`                 | List all saved profiles available in the `profiles` table.                                            |
+| Method                  | Cachetronaut                      | AsyncCachetronaut                 | Description                                                                                                 |
+| ----------------------- | --------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `__init__`              | `__init__(db_path, …)`            | `__init__(db_path, …)`            | Construct a new cache client with the given database path and settings.                                     |
+| `init_async`            | —                                 | `init_async()`                    | (Async only) Initialize any async-specific internals (e.g. connections).                                    |
+| `shutdown`              | `shutdown()`                      | `shutdown()`                      | Gracefully stop eviction threads and close the underlying                                                   |
+| `set`                   | `set(key, payload, …)`            | `set(key, payload, …)`            | Store a value under `key` with optional TTL, tags, serializer, etc.                                         |
+| `get`                   | `get(key, …)`                     | `get(key, …)`                     | Retrieve a cached entry (or `None` if missing/expired), optionally unmarshaled into a Pydantic model.       |
+| `delete`                | `delete(key)`                     | `delete(key)`                     | Remove the given key from the cache immediately.                                                            |
+| `evict`                 | `evict(key)`                      | `evict(key)`                      | Moves from in-RAM store → cold storage; can also`delete` from storage if expired + logs an eviction event.  |
+| `store_keys`            | `store_keys()`                    | `store_keys()`                    | Return a list of all keys currently persisted in cold storage.                                              |
+| `memory_keys`           | `memory_keys()`                   | `memory_keys()`                   | Return a list of all keys currently held in the in-process memory cache.                                    |
+| `all_keys`              | `all_keys()`                      | `all_keys()`                      | List every key in both memory and                                                                           |
+| `key_metadata`          | `key_metadata(key)`               | `key_metadata(key)`               | Fetch the metadata (TTL, serialization format, tags, version, etc.) for a single cache key.                 |
+| `store_metadata`        | `store_metadata()`                | `store_metadata()`                | Retrieve a list of metadata objects for every entry in the persistent                                       |
+| `items`                 | `items()`                         | `items()`                         | List every item in both memory and                                                                          |
+| `evict_all`             | `evict_all()`                     | `evict_all()`                     | Evict every entry (logs each eviction) but leaves table structure intact.                                   |
+| `clear_all`             | `clear_all()`                     | `clear_all()`                     | Delete all entries from both memory and store without logging individually.                                 |
+| `clear_expired`         | `clear_expired()`                 | `clear_expired()`                 | Purge only those entries whose TTL has elapsed.                                                             |
+| `clear_by_tags`         | `clear_by_tags(tags)`             | `clear_by_tags(tags)`             | Remove entries matching any of the provided tags.                                                           |
+| `clear_by_profile`      | `clear_by_profile(name)`          | `clear_by_profile(name)`          | Remove all entries that were saved under the given profile name.                                            |
+| `memory_stats`          | `memory_stats(limit)`             | `memory_stats(limit)`             | Return the top-N hottest keys by in-memory access count.                                                    |
+| `store_stats`           | `store_stats(limit)`              | `store_stats(limit)`              | Return the top-N hottest keys by persisted access count.                                                    |
+| `access_logs`           | `access_logs()`                   | `access_logs()`                   | Fetch raw access-log rows from SQLite for detailed inspection.                                              |
+| `key_access_logs`       | `key_access_logs(key)`            | `key_access_logs(key)`            | Fetch all access-log entries for a single key.                                                              |
+| `clear_access_logs`     | `clear_access_logs()`             | `clear_access_logs()`             | Delete all access-log rows from the database.                                                               |
+| `delete_access_logs`    | `delete_access_logs(key)`         | `delete_access_logs(key)`         | Delete all access-log rows for the given key.                                                               |
+| `eviction_logs`         | `eviction_logs(limit)`            | `eviction_logs(limit)`            | Fetch recent eviction events (manual, TTL, memory-pressure, etc.).                                          |
+| `clear_eviction_logs`   | `clear_eviction_logs()`           | `clear_eviction_logs()`           | Delete all recorded eviction events.                                                                        |
+| `profile`               | `@property` & `@profile.setter`   | `@property` & `@profile.setter`   | Get or switch to a named Profile, applying its settings and restarting eviction threads.                    |
+| `update_active_profile` | `update_active_profile(**kwargs)` | `update_active_profile(**kwargs)` | Modify the active profile’s settings in-place and persist them.                                             |
+| `get_profile`           | `get_profile(name)`               | `get_profile(name)`               | Load the settings of a named profile without applying them.                                                 |
+| `delete_profile`        | `delete_profile(name)`            | `delete_profile(name)`            | Remove a named profile from the `profiles` table.                                                           |
+| `list_profiles`         | `list_profiles()`                 | `list_profiles()`                 | List all saved profiles available in the `profiles` table.                                                  |
 
 # Cachetronomy Tables
 Here's a breakdown of the **tables and columns** you will have in your `cachetronomy` cache.
 ### 🗃️ `cache`
 Stores serialized cached objects, their TTL metadata, tags, and versioning.
 
-|Column |Type |Description |
-|------------------|------------|----------------------------------------------------|
-|`key` |TEXT (PK 🔑)|Unique cache key |
-|`data` |BLOB |Serialized value (orjson, msgpack, json) |
-|`fmt` |TEXT |Serialization format used |
-|`expire_at` |DATETIME |UTC expiry time. |
-|`tags` |TEXT |Serialized list of tags (usually JSON or CSV format)|
-|`version` |INTEGER |Version number for schema evolution/versioning |
-|`saved_by_profile`|TEXT |Profile name that created or last updated this entry|
+|Column            | Type        | Description                                         |
+|------------------| ------------| ----------------------------------------------------|
+|`key`             | TEXT (PK 🔑)| Unique cache key                                    |
+|`data`            | BLOB        | Serialized value (orjson, msgpack, json)            |
+|`fmt`             | TEXT        | Serialization format used                           |
+|`expire_at`       | DATETIME    | UTC expiry time.                                    |
+|`tags`            | TEXT        | Serialized list of tags (usually JSON or CSV format)|
+|`version`         | INTEGER     | Version number for schema evolution/versioning      |
+|`saved_by_profile`| TEXT        | Profile name that created or last updated this entry|
 ### 🧾 `access_log`
 Tracks when a key was accessed and how frequently.
 
-| Column | Type | Description |
+| Column                     | Type         | Description                       |
 | -------------------------- | ------------ | --------------------------------- |
-| `key` | TEXT (PK 🔑) | Cache key |
-| `access_count` | INTEGER | Number of times accessed |
-| `last_accessed` | DATETIME | Most recent access time |
-| `last_accessed_by_profile` | TEXT | Profile that made the last access |
+| `key`                      | TEXT (PK 🔑) | Cache key                         |
+| `access_count`             | INTEGER      | Number of times accessed          |
+| `last_accessed`            | DATETIME     | Most recent access time           |
+| `last_accessed_by_profile` | TEXT         | Profile that made the last access |
 ### 🚮 `eviction_log`
 Tracks key eviction events and their reasons (manual, TTL, memory, tag).
 
-|Column |Type |Description |
-|--------------------|---------------|------------------------------------------------------------|
-|`id` |INTEGER (PK 🔑)|Autoincrement ID |
-|`key` |TEXT |Evicted key |
-|`evicted_at` |DATETIME |Timestamp of eviction |
-|`reason` |TEXT |Reason string (`"manual_eviction"`, `"time_eviction"`, etc.)|
-|`last_access_count` |INTEGER |Final recorded access count before eviction |
-|`evicted_by_profile`|TEXT |Name of profile that triggered the eviction |
+| Column               | Type            | Description                                                 |
+| -------------------- | --------------- | ----------------------------------------------------------- |
+| `id`                 | INTEGER (PK 🔑) | Autoincrement ID                                            |
+| `key`                | TEXT            | Evicted key                                                 |
+| `evicted_at`         | DATETIME        | Timestamp of eviction                                       |
+| `reason`             | TEXT            | Reason string (`"manual_eviction"`, `"time_eviction"`, etc.)|
+| `last_access_count`  | INTEGER         | Final recorded access count before eviction                 |
+| `evicted_by_profile` | TEXT            | Name of profile that triggered the eviction                 |
 ### 📋 `profiles`
 Holds saved profile configurations for future reuse.
 
