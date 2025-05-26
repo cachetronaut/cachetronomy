@@ -153,6 +153,7 @@ if __name__ == "__main__":
 # 🗨 Cachetronomy API
 Quick overview of the public API for both sync (`Cachetronaut`) and async (`AsyncCachetronaut`) clients:
 >Note: `Cachetronomer` is the shared base class that encapsulates core caching logic used by both the synchronous and asynchronous cache clients.
+
 | Method                           | Description                                                                                                |
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `__init__`                       | Construct a new cache client with the given database path and settings.                                    |
