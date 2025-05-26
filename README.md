@@ -17,131 +17,140 @@ pip install cachetronomy[fast]
 ```
 ## 📦 Core Features
 ### Cache clients
-- **Sync**: `from cachetronomy import Cachetronaut`
-- **Async**: `from cachetronomy import AsyncCachetronaut`
-Both share almost 1:1 APIs:
+```python
+# For Sync Client
+from cachetronomy import Cachetronaut
+
+# For Async Client
+from cachetronomy import AsyncCachetronaut
+```
 ### Decorator API
 ```python
 import time
-from cachetronomy import Cachetronaut
+import asyncio
 
-cachetronaut: Cachetronaut = Cachetronaut(db_path="cachetronomy.db")
+from cachetronomy.core.types.schemas import CacheEntry
 
-@cachetronaut(time_to_live=3600)  # cache each quote for one hour
-def pull_quote_from_film(actor: str, film: str) -> str:
-    # your “expensive” lookup logic goes here
-    # for demonstration we just sleep and return a hard-coded quote
-    time.sleep(10) # time in seconds
-    return (
-        '''
-        The path of the righteous key is beset on all sides
-		by stale entries and the tyranny of cold fetches.
-		
-		Blessed is he who, in the name of latency and hit-rates,
-		shepherds the hot through the valley of disk I/O,
-		for he is truly the keeper of throughput and the finder of
-		lost lookups.
-		
-		And I will strike down upon thee with great vengeance and
-		furious eviction those who try to poison my cache.
-		
-		And you will know my name is Cache when I lay my lookups upon thee!
-		'''
-    )
+_ = '\n.'*5
 
-# First call → cache miss, runs the function
-quote1 = pull_quote_from_film("Samuel L. Cacheson", "Action Jackson")
+def sync_main():
+    print('\n# ––– Sync Client Test –––')
+    from cachetronomy import Cachetronaut
 
-# Subsequent call within the TTL → cache hit, returns instantly
-quote2 = pull_quote_from_film("Samuel L. Cacheson", "Action Jackson")
-assert quote1 is quote2  # same object from cache
+    cachetronaut: Cachetronaut = Cachetronaut(db_path='cachetronomy.db')
+    cachetronaut.clear_all()
 
-# If you really need to force eviction or clear expired entries, call them yourself:
-cachetronaut.evict("pull_quote_from_film:('Samuel L. Cacheson','Action Jackson')")
-cachetronaut.clear_expired()
+    items: list[CacheEntry] = cachetronaut.items()
+    print([item.model_dump() for item in items]) # no items
+
+    @cachetronaut(time_to_live=3600)  # cache each quote for one hour
+    def pull_quote_from_film(actor: str, film: str) -> str:
+        # Your “expensive” lookup logic goes here
+        # For demonstration we just sleep and return a hard-coded quote
+        time.sleep(2) # time in seconds
+        quote = 'The path of the righteous key is beset on all sidesby stale entries and the tyranny of cold fetches. Blessed is he who, in the name of latency and hit-rates, shepherds the hot through the valley of disk I/O, for he is truly the keeper of throughput and the finder oflost lookups. And I will strike down upon thee with great vengeance and furious eviction those who try to poison my cache. And you will know my name is Cache when I lay my lookups upon thee!'
+        return quote
+
+    # First call → cache miss, runs the function
+    quote1 = pull_quote_from_film('Samuel L. Cacheson', 'Action Jackson')
+
+    # Subsequent call within the TTL → cache hit, returns instantly
+    quote2 = pull_quote_from_film('Samuel L. Cacheson', 'Action Jackson')
+    print(f'{quote2 = }',_)
+    print(f'{quote1 is quote2 = }',_)
+
+    # If you really need to force eviction or clear expired entries, call them yourself:
+    print(f'{cachetronaut.get('pull_quote_from_film(actor=\'Samuel L. Cacheson\', film=\'Action Jackson\')')= }',_)
+    cachetronaut.evict('pull_quote_from_film:(\'Samuel L. Cacheson\',\'Action Jackson\')')
+    cachetronaut.clear_expired()
+    print(f'{cachetronaut.get('pull_quote_from_film(actor=\'Samuel L. Cacheson\', film=\'Action Jackson\')')= }',_)
 
 # OR TRY IT ASYNC
 
-import asyncio
-from typing import Any, Dict
-from cachetronomy import AsyncCachetronaut
+async def async_main():
+    print('\n# ––– Async Client Test –––')
+    from typing import Any, Dict
+    from cachetronomy import AsyncCachetronaut
 
-async def main():
     # 1. Init your async client
-    acachetronaut = AsyncCachetronaut(db_path="cachetronomy.db")
+    acachetronaut = AsyncCachetronaut(db_path='cachetronomy.db')
     await acachetronaut.init_async()
+    await acachetronaut.clear_all()
 
     # 2. Decorate your coroutine—cache results for 10 minutes
     @acachetronaut(time_to_live=600)
-    async def become_cachémon_master(id: int) -> Dict[str, Any]:
-        print('Welcome to the wonderful world of Cachémon...')
+    async def gotta_cache_em_all(id: int) -> Dict[str, Any]:
+        print('Welcome to the wonderful world of Cachémon.', _)
         await asyncio.sleep(1)
-        print('Pick your starter Cachémon, I'd start with a 🔥 type...')
+        print('Pick your starter Cachémon, I\'d start with a 🔥 type.', _)
         await asyncio.sleep(1)
-        print('Go get that first gym badge...')
+        print('Go get that first gym badge.', _)
         await asyncio.sleep(1)
-        print('Go get the next seven gym badges...')
+        print('Go get the next seven gym badges.', _)
         await asyncio.sleep(2)
-        print('Beat Blue (for the 100th time)...')
+        print('Beat Blue (for the 100th time).', _)
         await asyncio.sleep(1)
-        print('Also, you are gonna train if you want to get to the E4...')
+        print('Also, you are gonna train if you want to get to the E4.', _)
         await asyncio.sleep(3)
-        print('Now you got to beat the E4...')
+        print('Now you got to beat the E4.', _)
         await asyncio.sleep(1)
-        print('You did it! you are a Cachémon master!')
+        print('You did it! you are a Cachémon master!', _)
         return {
-            "id": id,
-            "name": "Ash Cache-um",
-            "type": "Person",
-            "known_for": "Trying to cache ’em al",
-            "cachémon": [
-                {"name": "Picacheu",   "type": "cachémon", "known_for": "Shocking retrieval speeds ⚡️"},
-                {"name": "Sandcache",  "type": "cachémon", "known_for": "Slashing latency with sharp precision ⚔️"},
-                {"name": "Rapicache",  "type": "cachémon", "known_for": "Blazing-fast data delivery 🔥"},
-                {"name": "Cachecoon",  "type": "cachémon", "known_for": "Securely cocooning your valuable data 🐛"},
-                {"name": "Cachedform", "type": "cachémon", "known_for": "Adapting to any data climate ☁️☀️🌧️"},
-                {"name": "Cachenea",   "type": "cachémon", "known_for": "Pinpointing the freshest data points 🌵"},
-                {"name": "Cacheturne", "type": "cachémon", "known_for": "Fetching data, even in the darkest queries 🌙"},
-                {"name": "Cacherain",  "type": "cachémon", "known_for": "Intimidating load times with swift patterns 🦋"},
-                {"name": "Snor-cache", "type": "cachémon", "known_for": "Waking up just in time to serve warm data 😴"},
-                ...
+            'id': id,
+            'name': 'Ash Cache-um',
+            'type': 'Person',
+            'known_for': 'Trying to cache ’em al',
+            'cachémon': [
+                {'name': 'Picacheu',   'type': 'cachémon', 'known_for': 'Shocking retrieval speeds ⚡️'},
+                {'name': 'Sandcache',  'type': 'cachémon', 'known_for': 'Slashing latency with sharp precision ⚔️'},
+                {'name': 'Rapicache',  'type': 'cachémon', 'known_for': 'Blazing-fast data delivery 🔥'},
+                {'name': 'Cachecoon',  'type': 'cachémon', 'known_for': 'Securely cocooning your valuable data 🐛'},
+                {'name': 'Cachedform', 'type': 'cachémon', 'known_for': 'Adapting to any data climate ☁️☀️🌧️'},
+                {'name': 'Cachenea',   'type': 'cachémon', 'known_for': 'Pinpointing the freshest data points 🌵'},
+                {'name': 'Cacheturne', 'type': 'cachémon', 'known_for': 'Fetching data, even in the darkest queries 🌙'},
+                {'name': 'Cacherain',  'type': 'cachémon', 'known_for': 'Intimidating load times with swift patterns 🦋'},
+                {'name': 'Snor-cache', 'type': 'cachémon', 'known_for': 'Waking up just in time to serve warm data 😴'},
             ],
+            'cachémon_champion': True,
+            'cachémon_champion_date': time.ctime(),
         }
-
+    
     # 3. On first call → cache miss, runs the coroutine
-    trainer1 = await cachemon_trainer(1301)
+    trainer1 = await gotta_cache_em_all(1301)
+    print(f'{trainer1 = }',_)
 
-    # 4. Subsequent call within TTL → cache hit, returns instantly
-    trainer2 = await cachemon_trainer(1301)
-    assert trainer1 is trainer2  # same object from cache
+    # 4. Second call within TTL → cache hit (returns instantly)
+    trainer2 = await gotta_cache_em_all(1301)
+    print(f'{trainer2 = }',_)
 
-    # 5. If you need to evict or purge expired entries manually:
-    await acachetronaut.evict("become_cachémon_master(1301)")
+    print(f'{trainer1 is trainer2 = }',_)
+    print(f'{await acachetronaut.get('gotta_cache_em_all(id=1301)') = }',_)
+
+    # 5. Manual eviction or cleanup
+    await acachetronaut.evict('gotta_cache_em_all(id=1301)')
     await acachetronaut.clear_expired()
+    print(f'{await acachetronaut.get('gotta_cache_em_all(id=1301)') = }',_)
 
-    # 6. Graceful shutdown when you’re done
     await acachetronaut.shutdown()
 
-
-asyncio.run(main())
+if __name__ == "__main__":
+    sync_main()
+    asyncio.run(async_main())
 ```
 
 ## Under the Hood: Core Mechanisms and Code References
-
-| Mechanism                    | How It Works                                                                                                                                                                                                   | Code Reference                                                                                      |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| **Key Building**             | The decorator’s `__call__` wraps your function and—via the shared `Cachetronomer` base—uses the default `key_builder` to form a key string of the form `fn(args)` – order independent.                         | `cachetronomer.py` → `__call__` → calls `key_builder.build(...)`                                    |
-| **Cache Lookup**             | In `get()`, first checks `self._memory.get(key)`; on a miss it checks `self.store.get(key)`, evicts stale entries, then returns the loaded value or `None`.                                                    | `cachetronaut.py` & `cachetronaut_async.py` → `get()`                                               |
-| **Storage**                  | After a miss, `set()` serializes via `serialize()`, puts the value into in-memory MFU, then writes a `CacheEntry` into SQLite with TTL, tags, profile, etc.                                                    | `cachetronaut.py` & `cachetronaut_async.py` → `set()`                                               |
-| **Profiles & Settings**      | The sync `@profile.setter` (and async `._set_profile` via your setter) loads or upserts a `Profile` row, then calls `_apply_profile_settings()` to update TTL, eviction intervals, tags, and restarts threads. | `cachetronaut.py` → `@profile.setter`;`cachetronaut_async.py` → `profile.setter` & `_set_profile()` |
-| **TTL Eviction**             | A daemon `TTLEvictionThread` sleeps `ttl_cleanup_interval` seconds, then calls `cache.clear_expired()` (via `run_coroutine_threadsafe` in async) to purge expired rows.                                        | `core/eviction/time_to_live.py` → `TTLEvictionThread.run()` & `_dispatch()`                         |
-| **Memory-Pressure Eviction** | A daemon `MemoryEvictionThread` polls `psutil.virtual_memory().available` every `memory_cleanup_interval` seconds and evicts the coldest keys via access-frequency until free memory ≥ target.                 | `core/eviction/memory.py` → `MemoryEvictionThread.run()`                                            |
-| **Manual Eviction**          | Public methods `evict(key)`, `clear_by_tags(...)`, and `clear_by_profile(...)` call into the in-memory cache and/or store delete APIs, logging eviction events where appropriate.                              | `cachetronaut.py` & `cachetronaut_async.py` → `evict()`, `clear_*()`                                |
-| **Hot-Key Tracking**         | On every `get()`, a callback registered in initialization logs an `AccessLogEntry` both in memory (fast counter) and—via `store.log_access()`—persistently to SQLite.                                          | `cachetronomer.py` registration in constructor;`cachetronaut_async.py` in `init_async()`            |
-| **Serialization**            | `set()` calls `serialize(value, prefer=…)`, which picks `orjson`, `msgpack`, or std `json` based on type and availability, and records the `fmt` in the DB.                                                    | `core/serialization.py` → `serialize()`;`cachetronaut*.py` → usage in `set()`                       |
-
+| Mechanism                    | How It Works                                                                                                              |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------|
+| **Key Building**             | Generates a consistent, order-independent key from the function name and its arguments.                                   |
+| **Cache Lookup**             | Checks the in-memory cache first; if the entry is missing or stale, continues to the next storage layer.                  |
+| **Storage**                  | On a miss, stores the newly computed result both in memory (for speed) and in a small on-disk database (for persistence). |
+| **Profiles & Settings**      | Lets you switch between saved caching profiles and settings without disrupting running code.                              |
+| **TTL Eviction**             | A background task periodically deletes entries that have exceeded their time-to-live.                                     |
+| **Memory-Pressure Eviction** | nother background task frees up space by evicting the least-used entries when available system memory gets too low.       |
+| **Manual Eviction**          | Helper methods allow you to remove individual keys or groups of entries whenever you choose.                              |
+| **Hot-Key Tracking**         | Records how frequently each key is accessed so the system knows which items are most important to keep.                   |
+| **Serialization**            | Converts data into a compact binary or JSON-like format before writing it to storage, and remembers which format it used. |
 >`Cachetronomer` is the shared base class that encapsulates core caching logic—like memory store management, key building, and eviction hooks—used by both the synchronous and asynchronous cache clients.
-
 # Cachetronomy API
 Quick overview of the public API for both sync (`Cachetronaut`) and async (`AsyncCachetronaut`) clients:
 
@@ -149,17 +158,17 @@ Quick overview of the public API for both sync (`Cachetronaut`) and async (`Asyn
 | ----------------------- | --------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | `__init__`              | `__init__(db_path, …)`            | `__init__(db_path, …)`            | Construct a new cache client with the given database path and settings.                               |
 | `init_async`            | —                                 | `init_async()`                    | (Async only) Initialize any async-specific internals (e.g. connections).                              |
-| `shutdown`              | `shutdown()`                      | `shutdown()`                      | Gracefully stop eviction threads and close the underlying store.                                      |
+| `shutdown`              | `shutdown()`                      | `shutdown()`                      | Gracefully stop eviction threads and close the underlying                                       |
 | `set`                   | `set(key, payload, …)`            | `set(key, payload, …)`            | Store a value under `key` with optional TTL, tags, serializer, etc.                                   |
 | `get`                   | `get(key, …)`                     | `get(key, …)`                     | Retrieve a cached entry (or `None` if missing/expired), optionally unmarshaled into a Pydantic model. |
 | `delete`                | `delete(key)`                     | `delete(key)`                     | Remove the given key from the cache immediately.                                                      |
 | `evict`                 | `evict(key)`                      | `evict(key)`                      | Same as `delete` but also logs an eviction event.                                                     |
 | `store_keys`            | `store_keys()`                    | `store_keys()`                    | Return a list of all keys currently persisted in SQLite.                                              |
 | `memory_keys`           | `memory_keys()`                   | `memory_keys()`                   | Return a list of all keys currently held in the in-process memory cache.                              |
-| `all_keys`              | `all_keys()`                      | `all_keys()`                      | List every key in both memory and store.                                                              |
-| `key_metadata`          | `key_metadata(key)`               | `key_metadata(key)                | Fetch the metadata (TTL, serialization format, tags, version, etc.) for a single cache key.           |
-| `store_metadata`        | `store_metadata()`                | `store_metadata()`                | Retrieve a list of metadata objects for every entry in the persistent store.                          |
-| `items`                 | `items()`                         | `items()`                         | List every item in both memory and store.                                                             |
+| `all_keys`              | `all_keys()`                      | `all_keys()`                      | List every key in both memory and                                                               |
+| `key_metadata`          | `key_metadata(key)`               | `key_metadata(key)`               | Fetch the metadata (TTL, serialization format, tags, version, etc.) for a single cache key.           |
+| `store_metadata`        | `store_metadata()`                | `store_metadata()`                | Retrieve a list of metadata objects for every entry in the persistent                           |
+| `items`                 | `items()`                         | `items()`                         | List every item in both memory and                                                              |
 | `evict_all`             | `evict_all()`                     | `evict_all()`                     | Evict every entry (logs each eviction) but leaves table structure intact.                             |
 | `clear_all`             | `clear_all()`                     | `clear_all()`                     | Delete all entries from both memory and store without logging individually.                           |
 | `clear_expired`         | `clear_expired()`                 | `clear_expired()`                 | Purge only those entries whose TTL has elapsed.                                                       |
