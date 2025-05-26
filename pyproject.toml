@@ -1,6 +1,6 @@
 [project]
 name            = 'cachetronomy'
-version         = '0.1.2'
+version         = '0.1.3'
 description     = 'A lightweight, SQLite-backed cache for Python with first-class sync and async support.'
 readme          = 'README.md'
 license         = { file = 'LICENSE' }

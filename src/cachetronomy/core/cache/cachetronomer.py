@@ -49,38 +49,65 @@ class Cachetronomer(ABC):
         tags: list[str] | None = None,
         key_builder: Callable[..., str] | None = None,
     ) -> Callable[P, R] | None:
-        def decorate(fn: Callable[P, R]) -> Callable[P, R] | None:
+        def decorate(fn: Callable[P, R]) -> Callable[P, R]:
             sig = inspect.signature(fn)
+            kb = key_builder or default_key_builder
+            is_async = inspect.iscoroutinefunction(fn)
 
-            @wraps(fn)
-            def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-                kb = key_builder or default_key_builder
-                key = kb(fn, args, kwargs)
-                model = (
-                    sig.return_annotation
-                    if inspect.isclass(sig.return_annotation)
-                    and issubclass(sig.return_annotation, BaseModel)
-                    else None
-                )
-                value = self.get(key, model=model)
-                if value is not None:
-                    return value
-                result = fn(*args, **kwargs)
-                self.set(
-                    key,
-                    result,
-                    time_to_live=time_to_live or self.time_to_live,
-                    tags=tags or self.tags,
-                )
-                return result
-
-            wrapper.__signature__ = sig
-            wrapper.key_for = lambda *a, **k: (
-                (key_builder or default_key_builder)(fn, a, k)
-            )
-            return wrapper
-
+            if is_async:
+                @wraps(fn)
+                async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+                    key = kb(fn, args, kwargs)
+                    # if the return type is a Pydantic model, pass it for deserialization
+                    model = (
+                        sig.return_annotation
+                        if inspect.isclass(sig.return_annotation)
+                        and issubclass(sig.return_annotation, BaseModel)
+                        else None
+                    )
+                    # 1) try to read from cache
+                    cached = await self.get(key, model=model)
+                    if cached is not None:
+                        return cached
+                    # 2) miss → run the actual coroutine
+                    result = await fn(*args, **kwargs)
+                    # 3) store it
+                    await self.set(
+                        key,
+                        result,
+                        time_to_live=time_to_live or self.time_to_live,
+                        tags=tags or self.tags,
+                    )
+                    return result
+                wrapper.__signature__ = sig
+                wrapper.key_for = lambda *a, **k: kb(fn, a, k)
+                return wrapper
+            else:
+                @wraps(fn)
+                def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+                    key = kb(fn, args, kwargs)
+                    model = (
+                        sig.return_annotation
+                        if inspect.isclass(sig.return_annotation)
+                        and issubclass(sig.return_annotation, BaseModel)
+                        else None
+                    )
+                    value = self.get(key, model=model)
+                    if value is not None:
+                        return value
+                    result = fn(*args, **kwargs)
+                    self.set(
+                        key,
+                        result,
+                        time_to_live=time_to_live or self.time_to_live,
+                        tags=tags or self.tags,
+                    )
+                    return result
+                wrapper.__signature__ = sig
+                wrapper.key_for = lambda *a, **k: kb(fn, a, k)
+                return wrapper
         return decorate(__fn) if __fn else decorate
+
 
     def _handle_eviction(
         self,
