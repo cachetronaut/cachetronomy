@@ -133,7 +133,7 @@ async def async_main():
 
     await acachetronaut.shutdown()
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     sync_main()
     asyncio.run(async_main())
 ```
@@ -220,7 +220,7 @@ Tracks key eviction events and their reasons (manual, TTL, memory, tag).
 | `id`                 | INTEGER (PK 🔑) | Autoincrement ID                                            |
 | `key`                | TEXT            | Evicted key                                                 |
 | `evicted_at`         | DATETIME        | Timestamp of eviction                                       |
-| `reason`             | TEXT            | Reason string (`"manual_eviction"`, `"time_eviction"`, etc.)|
+| `reason`             | TEXT            | Reason string (`'manual_eviction'`, `'time_eviction'`, etc.)|
 | `last_access_count`  | INTEGER         | Final recorded access count before eviction                 |
 | `evicted_by_profile` | TEXT            | Name of profile that triggered the eviction                 |
 ### 📋 `profiles`
