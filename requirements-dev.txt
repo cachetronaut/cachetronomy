@@ -2,7 +2,6 @@
 aiosqlite==0.21.0
 annotated-types==0.7.0
 asttokens==3.0.0
-colorama==0.4.6 ; sys_platform == 'win32'
 executing==2.2.0
 iniconfig==2.1.0
 msgpack==1.1.0
