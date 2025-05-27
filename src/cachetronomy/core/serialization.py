@@ -41,11 +41,11 @@ try:
             return orjson.loads(data)
         return orjson.loads(data.encode())
     _serializers['orjson'] = (_orjson_dumps, _orjson_loads)
-
 except ImportError:
-    logging.raiseExceptions(
-        'ImportError in `orjson` support; install orjson or omit preference.'
+    logging.debug(
+        'orjson not installed; falling back to JSON.'
     )
+
 try:
     import msgpack
     def _msgpack_dumps(obj: Any, **kwargs) -> bytes:
@@ -56,8 +56,8 @@ try:
         return msgpack.unpackb(data, raw=False)
     _serializers['msgpack'] = (_msgpack_dumps, _msgpack_loads)
 except ImportError:
-    logging.raiseExceptions(
-        'ImportError in `msgpack` support; install msgpack or omit preference.'
+    logging.debug(
+        'msgpack not installed; falling back to JSON.'
     )
 
 def choose_serializer(obj: Any, prefer: str | None = None) -> str:
