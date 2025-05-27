@@ -1,7 +1,7 @@
 # Cachetronomy
 A lightweight, SQLite-backed cache for Python with first-class sync **and** async support. Features TTL and memory-pressure eviction, persistent hot-key tracking, pluggable serialization, a decorator API and a CLI.
 
-[![Package Version](https://img.shields.io/pypi/v/cachetronomy.svg)](https://pypi.org/project/cachetronomy/) | [![Supported Python Versions](https://img.shields.io/pypi/pyversions/cachetronomy.svg)](https://pypi.org/project/cachetronomy/) | [![PyPI Downloads](https://static.pepy.tech/badge/cachetronomy)](https://pepy.tech/projects/cachetronomy)
+[![Package Version](https://img.shields.io/pypi/v/cachetronomy.svg)](https://pypi.org/project/cachetronomy/) | [![Supported Python Versions](https://img.shields.io/badge/Python->=3.9-blue?logo=python&logoColor=white)](https://pypi.org/project/cachetronomy/) | [![PyPI Downloads](https://static.pepy.tech/badge/cachetronomy)](https://pepy.tech/projects/cachetronomy) | ![License](https://img.shields.io/github/license/cachetronaut/cachetronomy) | ![GitHub Last Commit](https://img.shields.io/github/last-commit/cachetronaut/cachetronomy)  | ![Status](https://img.shields.io/pypi/status/cachetronomy)
 
 ## Why Cachetronomy?
 - **Persistent**: stores all entries in SQLite; survives process restarts, no separate server.
@@ -32,7 +32,7 @@ import asyncio
 
 from cachetronomy.core.types.schemas import CacheEntry
 
-_ = '\n.'*5
+space_out_prints = '\n.'*5
 
 def sync_main():
     print('\n# ––– Sync Client Test –––')
@@ -44,7 +44,7 @@ def sync_main():
     items: list[CacheEntry] = cachetronaut.items()
     print([item.model_dump() for item in items]) # no items
 
-    @cachetronaut(time_to_live=3600)  # cache each quote for one hour
+    @cachetronaut(time_to_live=3600, prefer='json')  # cache each quote for one hour
     def pull_quote_from_film(actor: str, film: str) -> str:
         # Your “expensive” lookup logic goes here
         # For demonstration we just sleep and return a hard-coded quote
@@ -54,17 +54,18 @@ def sync_main():
 
     # First call → cache miss, runs the function
     quote1 = pull_quote_from_film('Samuel L. Cacheson', 'Action Jackson')
+    print(f'{quote1 = }',space_out_prints)
 
     # Subsequent call within the TTL → cache hit, returns instantly
     quote2 = pull_quote_from_film('Samuel L. Cacheson', 'Action Jackson')
-    print(f'{quote2 = }',_)
-    print(f'{quote1 is quote2 = }',_)
+    print(f'{quote2 = }',space_out_prints)
+    print(f'{quote1 is quote2 = }',space_out_prints)
 
     # If you really need to force eviction or clear expired entries, call them yourself:
-    print(f'{cachetronaut.get('pull_quote_from_film(actor=\'Samuel L. Cacheson\', film=\'Action Jackson\')')= }',_)
+    print(f'{cachetronaut.get('pull_quote_from_film(actor=\'Samuel L. Cacheson\', film=\'Action Jackson\')')= }',space_out_prints)
     cachetronaut.evict('pull_quote_from_film:(\'Samuel L. Cacheson\',\'Action Jackson\')')
     cachetronaut.clear_expired()
-    print(f'{cachetronaut.get('pull_quote_from_film(actor=\'Samuel L. Cacheson\', film=\'Action Jackson\')')= }',_)
+    print(f'{cachetronaut.get('pull_quote_from_film(actor=\'Samuel L. Cacheson\', film=\'Action Jackson\')')= }',space_out_prints)
 
 # OR TRY IT ASYNC
 
@@ -79,23 +80,23 @@ async def async_main():
     await acachetronaut.clear_all()
 
     # 2. Decorate your coroutine—cache results for 10 minutes
-    @acachetronaut(time_to_live=600)
+    @acachetronaut(time_to_live=600, prefer='json')
     async def gotta_cache_em_all(id: int) -> Dict[str, Any]:
-        print('Welcome to the wonderful world of Cachémon.', _)
+        print('Welcome to the wonderful world of Cachémon.',space_out_prints)
         await asyncio.sleep(1)
-        print('Pick your starter Cachémon, I\'d start with a 🔥 type.', _)
+        print('Pick your starter Cachémon, I\'d start with a 🔥 type.',space_out_prints)
         await asyncio.sleep(1)
-        print('Go get that first gym badge.', _)
+        print('Go get that first gym badge.',space_out_prints)
         await asyncio.sleep(1)
-        print('Go get the next seven gym badges.', _)
+        print('Go get the next seven gym badges.',space_out_prints)
         await asyncio.sleep(2)
-        print('Beat Blue (for the 100th time).', _)
+        print('Beat Blue (for the 100th time).',space_out_prints)
         await asyncio.sleep(1)
-        print('Also, you are gonna train if you want to get to the E4.', _)
+        print('Also, you are gonna train if you want to get to the E4.',space_out_prints)
         await asyncio.sleep(3)
-        print('Now you got to beat the E4.', _)
+        print('Now you got to beat the E4.',space_out_prints)
         await asyncio.sleep(1)
-        print('You did it! you are a Cachémon master!', _)
+        print('You did it! you are a Cachémon master!',space_out_prints)
         return {
             'id': id,
             'name': 'Ash Cache-um',
@@ -118,23 +119,23 @@ async def async_main():
     
     # 3. On first call → cache miss, runs the coroutine
     trainer1 = await gotta_cache_em_all(1301)
-    print(f'{trainer1 = }',_)
+    print(f'{trainer1 = }',space_out_prints)
 
     # 4. Second call within TTL → cache hit (returns instantly)
     trainer2 = await gotta_cache_em_all(1301)
-    print(f'{trainer2 = }',_)
+    print(f'{trainer2 = }',space_out_prints)
 
-    print(f'{trainer1 is trainer2 = }',_)
-    print(f'{await acachetronaut.get('gotta_cache_em_all(id=1301)') = }',_)
+    print(f'{trainer1 is trainer2 = }',space_out_prints)
+    print(f'{await acachetronaut.get('gotta_cache_em_all(id=1301)') = }',space_out_prints)
 
     # 5. Manual eviction or cleanup
     await acachetronaut.evict('gotta_cache_em_all(id=1301)')
     await acachetronaut.clear_expired()
-    print(f'{await acachetronaut.get('gotta_cache_em_all(id=1301)') = }',_)
+    print(f'{await acachetronaut.get('gotta_cache_em_all(id=1301)') = }',space_out_prints)
 
     await acachetronaut.shutdown()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sync_main()
     asyncio.run(async_main())
 ```
