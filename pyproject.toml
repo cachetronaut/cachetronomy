@@ -1,6 +1,6 @@
 [project]
 name            = 'cachetronomy'
-version         = '0.1.3'
+version         = '0.1.4'
 description     = 'A lightweight, SQLite-backed cache for Python with first-class sync and async support.'
 readme          = 'README.md'
 license         = { file = 'LICENSE' }
@@ -24,6 +24,10 @@ classifiers = [
     'Operating System :: OS Independent',
     'Programming Language :: Python :: 3 :: Only',
     'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3.12',
     'Programming Language :: Python :: 3.13',
     'Programming Language :: Python :: Implementation :: CPython',
     'Topic :: Software Development :: Libraries :: Python Modules',
@@ -39,13 +43,11 @@ dependencies = [
   'aiosqlite>=0.20,<1.0',
   'psutil>=5.9,<8.0',
   'python-dateutil>=2.8,<3.0',
-  'msgpack>=1.0,<2.0',
   'pydantic>=2.0,<3.0',
   'pydantic-settings>=2.0,<3.0',
   'pyyaml>=6.0,<7.0',
   'python-dotenv>=1.1.0',
   'typing-extensions>=4.13.2',
-  "orjson>=3.10.16",
 ]
 
 [project.urls]
@@ -53,6 +55,11 @@ Homepage = 'https://github.com/cachetronaut/cachetronomy'
 Issues = 'https://github.com/cachetronaut/cachetronomy/issues'
 Documentation = 'https://github.com/cachetronaut/cachetronomy'
 Repository = 'https://github.com/cachetronaut/cachetronomy'
+
+[project.optional-dependencies]
+fast = ['msgpack>=1.1.0', 'orjson>=3.10.16']
+lint = ['ruff>=0.11.11']
+dev = ['pytest>=8.3.5', 'pytest-asyncio>=0.26.0',]
 
 [build-system]
 requires = ['hatchling>=1.10,<2.0']
