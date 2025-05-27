@@ -47,7 +47,9 @@ class Cachetronomer(ABC):
         *,
         time_to_live: int | None = None,
         tags: list[str] | None = None,
+        version: int | None = None,
         key_builder: Callable[..., str] | None = None,
+        prefer: str | None,
     ) -> Callable[P, R] | None:
         def decorate(fn: Callable[P, R]) -> Callable[P, R]:
             sig = inspect.signature(fn)
@@ -58,27 +60,28 @@ class Cachetronomer(ABC):
                 @wraps(fn)
                 async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
                     key = kb(fn, args, kwargs)
-                    # if the return type is a Pydantic model, pass it for deserialization
                     model = (
                         sig.return_annotation
                         if inspect.isclass(sig.return_annotation)
                         and issubclass(sig.return_annotation, BaseModel)
                         else None
                     )
-                    # 1) try to read from cache
                     cached = await self.get(key, model=model)
                     if cached is not None:
                         return cached
-                    # 2) miss → run the actual coroutine
-                    result = await fn(*args, **kwargs)
-                    # 3) store it
+                    value = await fn(*args, **kwargs)
                     await self.set(
                         key,
-                        result,
+                        value,
                         time_to_live=time_to_live or self.time_to_live,
+                        version=version or getattr(
+                            getattr(value, '__class__', None), 
+                            '__cache_version__', 1
+                        ),
                         tags=tags or self.tags,
+                        prefer=prefer or self.prefer,
                     )
-                    return result
+                    return value
                 wrapper.__signature__ = sig
                 wrapper.key_for = lambda *a, **k: kb(fn, a, k)
                 return wrapper
@@ -92,17 +95,22 @@ class Cachetronomer(ABC):
                         and issubclass(sig.return_annotation, BaseModel)
                         else None
                     )
-                    value = self.get(key, model=model)
-                    if value is not None:
-                        return value
-                    result = fn(*args, **kwargs)
+                    cached = self.get(key, model=model)
+                    if cached is not None:
+                        return cached
+                    value = fn(*args, **kwargs)
                     self.set(
                         key,
-                        result,
+                        value,
                         time_to_live=time_to_live or self.time_to_live,
+                        version=version or getattr(
+                            getattr(value, '__class__', None), 
+                            '__cache_version__', 1
+                        ),
                         tags=tags or self.tags,
+                        prefer=prefer or self.prefer,
                     )
-                    return result
+                    return value
                 wrapper.__signature__ = sig
                 wrapper.key_for = lambda *a, **k: kb(fn, a, k)
                 return wrapper
