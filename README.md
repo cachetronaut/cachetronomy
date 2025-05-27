@@ -1,7 +1,8 @@
 # Cachetronomy
 A lightweight, SQLite-backed cache for Python with first-class sync **and** async support. Features TTL and memory-pressure eviction, persistent hot-key tracking, pluggable serialization, a decorator API and a CLI.
 
-[![Package Version](https://img.shields.io/pypi/v/cachetronomy.svg)](https://pypi.org/project/cachetronomy/) | [![Supported Python Versions](https://img.shields.io/pypi/pyversions/cachetronomy.svg)](https://pypi.org/project/cachetronomy/)
+[![Package Version](https://img.shields.io/pypi/v/cachetronomy.svg)](https://pypi.org/project/cachetronomy/) | [![Supported Python Versions](https://img.shields.io/pypi/pyversions/cachetronomy.svg)](https://pypi.org/project/cachetronomy/) | [![PyPI Downloads](https://static.pepy.tech/badge/cachetronomy)](https://pepy.tech/projects/cachetronomy)
+
 ## Why Cachetronomy?
 - **Persistent**: stores all entries in SQLite; survives process restarts, no separate server.
 - **Sync & Async**: one API shape for both `Cachetronaut` (sync) and `AsyncCachetronaut` (async).
