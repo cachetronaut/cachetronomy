@@ -4,9 +4,8 @@ version         = '0.1.4'
 description     = 'A lightweight, SQLite-backed cache for Python with first-class sync and async support.'
 readme          = 'README.md'
 license         = { file = 'LICENSE' }
-license-files = ['LICEN[CS]E*']
-authors         = [
-  { name = 'Abraham Castro-Vela', email = 'abrahamacastro+code@gmail.com' },
+license-files   = ['LICEN[CS]E*']
+authors         = [ { name = 'Abraham Castro-Vela', email = 'abrahamacastro+code@gmail.com' },
 ]
 requires-python = '>=3.9,<4.0'
 
@@ -57,9 +56,17 @@ Documentation = 'https://github.com/cachetronaut/cachetronomy'
 Repository = 'https://github.com/cachetronaut/cachetronomy'
 
 [project.optional-dependencies]
-fast = ['msgpack>=1.1.0', 'orjson>=3.10.16']
-lint = ['ruff>=0.11.11']
-dev = ['pytest>=8.3.5', 'pytest-asyncio>=0.26.0',]
+fast = [
+  'msgpack>=1.1.0', 
+  'orjson>=3.10.16'
+]
+lint = [
+  'ruff>=0.11.11'
+]
+dev = [
+  'pytest>=8.3.5', 
+  'pytest-asyncio>=0.26.0'
+]
 
 [build-system]
 requires = ['hatchling>=1.10,<2.0']
