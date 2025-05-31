@@ -41,11 +41,11 @@ ENV/
 .DS_Store
 
 # Lock files
-uv.lock
+# uv.lock
 Pipfile.lock
 
 # Test data / databases
-tests/cachetronomy.db*
+*cachetronomy.db*
 dummy_data.json
 
 # local stress tests / fixtures
