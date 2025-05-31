@@ -7,7 +7,7 @@ license         = { file = 'LICENSE' }
 license-files   = ['LICEN[CS]E*']
 authors         = [ { name = 'Abraham Castro-Vela', email = 'abrahamacastro+code@gmail.com' },
 ]
-requires-python = '>=3.9,<4.0'
+requires-python = '>=3.10,<4.0'
 
 classifiers = [
     'Development Status :: 4 - Beta',
