@@ -115,7 +115,7 @@ def sync_main():
     )
 
     @cachetronaut(time_to_live=900, prefer='json')
-    def pull_quote(celebrity: str, film: str) -%3E str:
+    def pull_quote(celebrity: str, film: str) -> str:
         '''Simulate an expensive lookup by picking a random film quote.'''
         time.sleep(2)  # simulate latency
         return random.choice(QUOTES_DB[film])
@@ -308,7 +308,7 @@ if __name__ == '__main__':
 | `eviction_logs`                | Fetch recent eviction events (manual, TTL, memory-pressure, etc.).                                         |
 | `clear_eviction_logs`          | Delete all recorded eviction events.                                                                       |
 | `profile` (`@property`)        | Get current Profile.                                                                                       |
-| `profile` (`@property.setter`) | Switch to a named Profile, applying its settings and restarting eviction threads.                          |
+| `set_profile`                  | Switch to a named Profile, applying its settings and restarting eviction threads.                          |
 | `update_active_profile`        | Modify the active profile’s settings in-place and persist them.                                            |
 | `get_profile`                  | Load the settings of a named profile without applying them.                                                |
 | `delete_profile`               | Remove a named profile from the `profiles` table.                                                          |
