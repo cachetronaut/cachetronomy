@@ -283,7 +283,6 @@ if __name__ == '__main__':
 | Method                         | Description                                                                                                |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------- |
 | `__init__`                     | Construct a new cache client with the given database path and settings.                                    |
-| `init_async`                   | (Async only) Initialize any async-specific internals (e.g. connections).                                   |
 | `shutdown`                     | Gracefully stop eviction threads and close the underlying                                                  |
 | `set`                          | Store a value under `key` with optional TTL, tags, serializer, etc.                                        |
 | `get`                          | Retrieve a cached entry (or `None` if missing/expired), optionally unmarshaled into a Pydantic model.      |
