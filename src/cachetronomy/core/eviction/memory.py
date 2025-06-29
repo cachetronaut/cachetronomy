@@ -2,7 +2,8 @@ import threading
 import psutil
 import logging
 import asyncio
-import inspect
+
+from synchronaut import synchronaut, get_preferred_loop
 
 from cachetronomy.core.access_frequency import hot_keys
 
@@ -17,7 +18,9 @@ class MemoryEvictionThread(threading.Thread):
     ):
         super().__init__(daemon=True, name='memory_eviction_thread')
         self.cache = cache
-        self.loop = loop
+        self.loop = loop if isinstance(
+                            loop, asyncio.AbstractEventLoop
+                        ) else get_preferred_loop()
         self.memory_cleanup_interval = memory_cleanup_interval
         self.free_memory_target = free_memory_target
         self._stop_event = threading.Event()
@@ -33,6 +36,7 @@ class MemoryEvictionThread(threading.Thread):
             keys_to_evict.append(key)
         return keys_to_evict
 
+    @synchronaut()
     def evict(self) -> None:
         available_mb = self._available_mb()
         total_mb = psutil.virtual_memory().total / (1024 ** 2)
@@ -51,16 +55,11 @@ class MemoryEvictionThread(threading.Thread):
             if available_mb > threshold_mb:
                 return
 
+    @synchronaut()
     def run(self):
         while not self._stop_event.is_set():
             try:
-                if inspect.iscoroutinefunction(self.evict):
-                    asyncio.run_coroutine_threadsafe(
-                        self.evict(), 
-                        self.loop
-                    ).result()
-                else:
-                    self.evict()
+                self.evict()
             except Exception:
                 logging.exception(
                     'MemoryEvictionThread encountered an error during eviction.'
@@ -68,10 +67,13 @@ class MemoryEvictionThread(threading.Thread):
             if self._stop_event.wait(self.memory_cleanup_interval):
                 break
 
-    def stop(self):
+    @synchronaut()
+    async def stop(self):
         logging.debug(
             'Shutting down MemoryEvictionThread and evicting remaining keys.'
-                      )
-        for key in self._determine_keys_to_evict() or []:
-            self.cache._memory.evict(key, reason='shutdown')
+        )
+        keys_to_evict = [key for key in self._determine_keys_to_evict()]
+        if keys_to_evict:
+            for key in keys_to_evict:
+                await self.cache._memory.evict(key, reason='shutdown')
         self._stop_event.set()

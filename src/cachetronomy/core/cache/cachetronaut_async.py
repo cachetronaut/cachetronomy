@@ -1,5 +1,7 @@
 import os
 import asyncio
+
+from warnings import deprecated
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
 from datetime import timedelta
@@ -28,7 +30,13 @@ from cachetronomy.core.access_frequency import (
 )
 from cachetronomy.core.utils.time_utils import _now
 
-
+@deprecated(
+    '''
+    This is will not be supported as per the switch to synchronaut in v0.2.0.
+    Refer to documentation at: https://github.com/cachetronaut/cachetronomy for more information.
+    ''',
+    category=DeprecationWarning,
+)
 class AsyncCachetronaut(Cachetronomer):
     def __init__(
         self, 

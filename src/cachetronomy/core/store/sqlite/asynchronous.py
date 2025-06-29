@@ -2,6 +2,7 @@ import sqlite3
 import aiosqlite
 import json
 
+from warnings import deprecated
 from datetime import datetime
 from typing import Any
 from pydantic import ValidationError
@@ -16,7 +17,7 @@ from cachetronomy.core.types.schemas import (
     CustomQuery,
     T
 )
-from cachetronomy.core.store.utils.batch_logger import AsyncBatchLogger
+from cachetronomy.core.store.utils.batch_logger import BatchLogger
 from cachetronomy.core.utils.time_utils import _now
 from cachetronomy.core.store.utils.sanitizers import clean_tags as _clean_tags
 
@@ -26,14 +27,21 @@ sqlite3.register_converter(
 )
 
 
+@deprecated(
+    '''
+    This is will not be supported as per the switch to synchronaut in v0.2.0.
+    Refer to documentation at: https://github.com/cachetronaut/cachetronomy for more information.
+    ''',
+    category=DeprecationWarning,
+)
 class AsyncSQLiteStore:
     def __init__(self, db_path: str) -> None:
         self.db_path = db_path
         self._conn: aiosqlite.Connection | None = None
-        self.access_logger = AsyncBatchLogger(
+        self.access_logger = BatchLogger(
             self.log_access_batch, flush_interval=0.5, batch_size=200
         )
-        self.eviction_logger = AsyncBatchLogger(
+        self.eviction_logger = BatchLogger(
             self.log_eviction_batch, flush_interval=0.5, batch_size=200
         )
 
@@ -594,7 +602,7 @@ class AsyncSQLiteStore:
         self, 
         custom_query: CustomQuery
     ) -> list[T] | list[dict[str, Any]] | int:
-        """
+        '''
             ⚠️ Experimental: Execute a custom SQL query against the backend store.
 
             This low-level utility enables direct querying of the underlying db.
@@ -608,7 +616,7 @@ class AsyncSQLiteStore:
                 return formats are subject to change. Use it only for development,
                 testing, or internal analysis where full control over the SQL 
                 query is needed.
-        """
+        '''
         async with self._conn.execute(custom_query.query, custom_query.params) as cursor:
             if custom_query.autocommit:
                 await self._conn.commit()

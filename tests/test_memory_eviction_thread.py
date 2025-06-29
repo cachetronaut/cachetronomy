@@ -1,5 +1,6 @@
 import asyncio
 import time
+import threading
 
 from cachetronomy.core.eviction.memory import MemoryEvictionThread
 import cachetronomy.core.access_frequency as af
@@ -13,10 +14,16 @@ def test_memory_eviction_by_threshold(monkeypatch, dummy_cache):
     af.promote_key('a')
     af.promote_key('b')
     af.promote_key('c')
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        t = threading.Thread(target=loop.run_forever, daemon=True)
+        t.start()
     with fake_mem(monkeypatch, avail_mb=10): # force a “low memory” state
         thread = MemoryEvictionThread(
             cache=dummy_cache,
-            loop=asyncio.get_event_loop(),
+            loop=loop,
             memory_cleanup_interval=0.02,
             free_memory_target=20,
         )

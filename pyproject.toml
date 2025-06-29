@@ -1,6 +1,6 @@
 [project]
 name            = "cachetronomy"
-version         = "0.1.5"
+version         = "0.2.0"
 description     = "A lightweight, SQLite-backed cache for Python with first-class sync and async support."
 readme          = "README.md"
 license         = { file = "LICENSE" }
@@ -82,7 +82,6 @@ classifiers = [
 ]
 
 dependencies = [
-  "aiosqlite>=0.20,<1.0",
   "psutil>=5.9,<8.0",
   "python-dateutil>=2.8,<3.0",
   "pydantic>=2.0,<3.0",
@@ -90,7 +89,13 @@ dependencies = [
   "pyyaml>=6.0,<7.0",
   "python-dotenv>=1.1.0",
   "typing-extensions>=4.13.2",
+  "typer>=0.16.0",
+  "synchronaut[fast]>=0.3.5",
+  "rich>=14.0.0",
 ]
+
+[project.scripts]
+cachetronomy = "cachetronomy.__main__:app"
 
 [project.urls]
 Homepage = "https://github.com/cachetronaut/cachetronomy"
@@ -100,8 +105,8 @@ Repository = "https://github.com/cachetronaut/cachetronomy"
 
 [project.optional-dependencies]
 fast = [
-  "msgpack>=1.1.0", 
-  "orjson>=3.10.16"
+  "msgpack>=1.1.0",
+  "orjson>=3.10.16",
 ]
 lint = [
   "ruff>=0.11.11"
@@ -119,6 +124,7 @@ build-backend = "hatchling.build"
 dev = [
     "pytest>=8.3.5",
     "pytest-asyncio>=0.26.0",
+    "typer>=0.16.0",
 ]
 fast = [
     "msgpack>=1.1.0",

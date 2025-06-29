@@ -1,5 +1,6 @@
 from typing import Protocol, Set
 
+from warnings import deprecated
 from cachetronomy.core.types.profiles import Profile
 from cachetronomy.core.types.schemas import (
     CacheEntry,
@@ -9,6 +10,13 @@ from cachetronomy.core.types.schemas import (
     EvictionLogEntry,
 )
 
+@deprecated(
+    '''
+    This is will not be supported as per the switch to synchronaut in v0.2.0.
+    Refer to documentation at: https://github.com/cachetronaut/cachetronomy for more information.
+    ''',
+    category=DeprecationWarning,
+)
 class StoreProtocol(Protocol):
     def get(self, key: str) -> CacheEntry | None: 
         pass
@@ -84,7 +92,13 @@ class StoreProtocol(Protocol):
     def clear_eviction_logs(self) -> None: 
         pass
 
-
+@deprecated(
+    '''
+    This is will not be supported as per the switch to synchronaut in v0.2.0.
+    Refer to documentation at: https://github.com/cachetronaut/cachetronomy for more information.
+    ''',
+    category=DeprecationWarning,
+)
 class AsyncStoreProtocol(Protocol):
     async def init(self) -> None: 
         pass

@@ -6,10 +6,13 @@ from datetime import datetime
 from collections.abc import Set
 from typing import Any
 
+import asyncio
+
 from sqlite3 import PARSE_DECLTYPES, PARSE_COLNAMES
 from pydantic import ValidationError
+from synchronaut import synchronaut, call_any, get_preferred_loop
 
-from cachetronomy.core.store.utils.batch_logger import SyncBatchLogger
+from cachetronomy.core.store.utils.batch_logger import BatchLogger
 from cachetronomy.core.store.utils.sanitizers import clean_tags as _clean_tags
 from cachetronomy.core.types.profiles import Profile
 from cachetronomy.core.types.schemas import (
@@ -31,23 +34,37 @@ sqlite3.register_converter(
 
 
 class SQLiteStore:
-    def __init__(self, db_path: str):
+    def __init__(
+            self, 
+            db_path: str, 
+            loop: asyncio.AbstractEventLoop | None = None,
+    ):
+        self.db_path = db_path
         self._conn = sqlite3.connect(
-        db_path,
+        self.db_path,
         check_same_thread=False,
         detect_types=PARSE_DECLTYPES | PARSE_COLNAMES,
-        isolation_level=None
+        isolation_level=None,
     )
         self._conn.row_factory = sqlite3.Row
         self._lock = threading.RLock()
-        self.access_logger = SyncBatchLogger(
-            self.log_access_batch, batch_size=200, flush_interval=0.5
+        self.loop = loop if isinstance(
+                            loop, asyncio.AbstractEventLoop
+                        ) else get_preferred_loop()
+        self.access_logger = BatchLogger(
+            self.log_access_batch, 
+            batch_size=500, 
+            flush_interval=5.0,
+            loop=self.loop
         )
-        self.eviction_logger = SyncBatchLogger(
-            self.log_eviction_batch, batch_size=200, flush_interval=0.5
+        self.eviction_logger = BatchLogger(
+            self.log_eviction_batch, 
+            batch_size=500, 
+            flush_interval=5.0,
+            loop=self.loop
         )
-        self.access_logger.start()
-        self.eviction_logger.start()
+        call_any(self.access_logger.start)
+        call_any(self.eviction_logger.start)
         self._init_pragmas()
         self._create_tables()
         self._seed_default_profile()
@@ -130,6 +147,13 @@ class SQLiteStore:
                     evicted_by_profile TEXT     NOT NULL
                 )
             ''')
+            self._conn.execute('''
+                CREATE TABLE IF NOT EXISTS cli_config (
+                    key     TEXT PRIMARY KEY,
+                    value   TEXT NOT NULL,
+                    db_path TEXT NOT NULL
+                )
+            ''')
             self._conn.execute('COMMIT')
 
     def _seed_default_profile(self):
@@ -161,14 +185,42 @@ class SQLiteStore:
                 ON CONFLICT(name) DO NOTHING
             ''', default)
 
+    @synchronaut()
+    async def set_config(self, key: str, value: str, db_path: str) -> None:
+        with self._lock:
+            self._conn.execute(
+                '''INSERT OR REPLACE INTO cli_config 
+                    (key, 
+                    value, 
+                    db_path) 
+                VALUES (?,?,?)''',
+                (key, value, db_path or self.db_path),
+            )
+
+    @synchronaut()
+    def get_config(self, key: str) -> tuple[str, str]:
+        with self._lock:
+            cur = self._conn.execute(
+                'SELECT value, db_path FROM cli_config WHERE key = ?', (key,)
+            )
+            row = cur.fetchone()
+
+        if row:
+            profile, db_path = row['value'], row['db_path']
+            return profile, db_path
+        else: 
+            return 'default', str(self.db_path)
+
     def close(self):
         self.access_logger.stop()
         self.eviction_logger.stop()
         self._conn.close()
 
+
     # ——— Cache API ———
 
-    def set(
+    @synchronaut()
+    async def set(
         self,
         entry: CacheEntry
     ) -> None:
@@ -194,8 +246,10 @@ class SQLiteStore:
                         entry.version,
                     )
         )
+        return entry
 
-    def get(self, key: str) -> CacheEntry | None:
+    @synchronaut()
+    async def get(self, key: str) -> CacheEntry | None:
         with self._lock:
             cursor = self._conn.execute('''
                 SELECT
@@ -215,33 +269,45 @@ class SQLiteStore:
                     return None
                 entry: CacheEntry = CacheEntry(**_clean_tags(row))
             except ValidationError as validation_error:
-                raise RuntimeError(f'Corrupt cache entry for {key}: {validation_error}')
+                raise RuntimeError(
+                    f'Corrupt cache entry for {key}: {validation_error}'
+                )
             return entry
 
-    def delete(self, key: str) -> None:
+    @synchronaut()
+    async def delete(self, key: str) -> None:
         with self._lock:
             self._conn.execute('DELETE FROM cache WHERE key = ?', (key,))
 
-    def clear_all(self) -> None:
+    @synchronaut()
+    async def clear_all(self) -> None:
         with self._lock:
             self._conn.execute('DELETE FROM cache')
 
-    def keys(self) -> list[str] | None:
+    @synchronaut()
+    async def keys(self) -> list[str] | None:
         with self._lock:
             cursor = self._conn.execute('SELECT key FROM cache')
             rows = cursor.fetchall()
         return [row['key'] for row in rows]
 
-    def items(self) -> list[CacheEntry] | None:
+    @synchronaut()
+    async def items(self, limit: int | None) -> list[CacheEntry] | None:
         with self._lock:
-            cursor = self._conn.execute('SELECT * FROM cache')
+            cursor = self._conn.execute('''
+                                        SELECT * 
+                                        FROM cache
+                                        LIMIT ?
+                                        ''', (limit,))
             rows = cursor.fetchall()
-        entries: list[CacheEntry] = [CacheEntry(**_clean_tags(row)) for row in rows 
+        entries: list[CacheEntry] = [
+            CacheEntry(**_clean_tags(row)) for row in rows 
             if _clean_tags(row) is not None
         ]
         return entries
 
-    def clear_expired(self) -> list[ExpiredEntry] | None:
+    @synchronaut()
+    async def clear_expired(self) -> list[ExpiredEntry] | None:
         now = _now()
         with self._lock:
             self._conn.execute('BEGIN')
@@ -257,7 +323,8 @@ class SQLiteStore:
             self._conn.execute('COMMIT')
         return [ExpiredEntry(**dict(row)) for row in rows]
 
-    def get_keys_by_tags(
+    @synchronaut()
+    async def get_keys_by_tags(
         self, 
         tags: list[str], 
         exact_match: bool = False
@@ -281,12 +348,12 @@ class SQLiteStore:
             rows = cursor.fetchall()
         return [r['key'] for r in rows]
 
-    def clear_by_tags(
+    @synchronaut()
+    async def clear_by_tags(
         self, 
         tags: list[str], 
         exact_match: bool = False
-    ) -> list[str] | None:
-        keys = self.get_keys_by_tags(tags, exact_match)
+    ) -> None:
         placeholders = ','.join('?' for _ in tags)
         if not exact_match:
             sql = f'''
@@ -302,9 +369,10 @@ class SQLiteStore:
             params = [json.dumps(tags)]
         with self._lock:
             self._conn.execute(sql, params)
-        return keys
-    
-    def clear_by_profile(self, profile_name: str) -> list[str] | None:
+        # return keys
+
+    @synchronaut()    
+    async def clear_by_profile(self, profile_name: str) -> list[str] | None:
         with self._lock:
             self._conn.execute('BEGIN')
             cursor = self._conn.execute(
@@ -323,7 +391,8 @@ class SQLiteStore:
             self._conn.execute('COMMIT')
         return keys
 
-    def metadata(self) -> list[CacheMetadata] | None:
+    @synchronaut()
+    async def metadata(self) -> list[CacheMetadata] | None:
         sql = '''
             SELECT 
                 key, 
@@ -341,7 +410,8 @@ class SQLiteStore:
         ]
         return entries
 
-    def key_metadata(self, key: str) -> CacheMetadata | None:
+    @synchronaut()
+    async def key_metadata(self, key: str) -> CacheMetadata | None:
         with self._lock:
             cursor = self._conn.execute('''
                 SELECT 
@@ -359,7 +429,8 @@ class SQLiteStore:
 
     # ——— Profiles API ———
 
-    def update_profile_settings(
+    @synchronaut()
+    async def update_profile_settings(
         self,
         name: str,
         time_to_live: int,
@@ -403,7 +474,8 @@ class SQLiteStore:
                     max_items_in_memory     = excluded.max_items_in_memory
             ''', params)
 
-    def profile(self, name: str) -> Profile | None:
+    @synchronaut()
+    async def profile(self, name: str) -> Profile | None:
         with self._lock:
             cursor = self._conn.execute('''
                 SELECT
@@ -431,7 +503,8 @@ class SQLiteStore:
             max_items_in_memory=row['max_items_in_memory'],
         )
 
-    def list_profiles(self) -> list[Profile] | None:
+    @synchronaut()
+    async def list_profiles(self) -> list[Profile] | None:
         with self._lock:
             cursor = self._conn.execute('SELECT * FROM profiles')
             rows = cursor.fetchall()
@@ -442,16 +515,18 @@ class SQLiteStore:
             data['memory_based_eviction'] = bool(data['memory_based_eviction'])
             profiles.append(Profile(**data))
         return profiles
-    
-    def delete_profile(self, name: str) -> None:
+
+    @synchronaut()    
+    async def delete_profile(self, name: str) -> None:
         with self._lock:
             self._conn.execute('DELETE FROM profiles WHERE name = ?',(name,),)
 
     # ——— Access Log API ———
 
-    def log_access(self, entry: AccessLogEntry, batch: bool = True) -> None:
+    @synchronaut()
+    async def log_access(self, entry: AccessLogEntry, batch: bool = True) -> None:
         if batch:
-            self.access_logger.log(entry)
+            await self.access_logger.log(entry)
         else:
             with self._lock:
                 self._conn.execute(
@@ -474,7 +549,9 @@ class SQLiteStore:
                     ),
                 )
 
-    def stats(self, limit: int=10) -> list[AccessLogEntry] | None:
+    @synchronaut()
+    async def stats(self, limit: int=10) -> list[AccessLogEntry] | None:
+        await self.access_logger.flush()
         if limit is None:
             sql = '''
                 SELECT 
@@ -503,7 +580,9 @@ class SQLiteStore:
             rows = cursor.fetchall()
         return [AccessLogEntry(**dict(row)) for row in rows]
 
-    def key_access_logs(self, key: str) -> AccessLogEntry | None:
+    @synchronaut()
+    async def key_access_logs(self, key: str) -> AccessLogEntry | None:
+        await self.access_logger.flush()
         with self._lock:
             cursor = self._conn.execute('''
                                         SELECT *
@@ -520,21 +599,30 @@ class SQLiteStore:
             )
         return AccessLogEntry(**dict(row))
 
-    def access_logs(self) -> list[AccessLogEntry] | None:
+    @synchronaut()
+    async def access_logs(self, limit: int | None) -> list[AccessLogEntry] | None:
+        await self.access_logger.flush()
         with self._lock:
-            cursor = self._conn.execute('SELECT * FROM access_log')
+            cursor = self._conn.execute('''
+                                        SELECT * 
+                                        FROM access_log 
+                                        LIMIT ?
+                                        ''',(limit, ))
             rows = cursor.fetchall()
         return [AccessLogEntry(**dict(row)) for row in rows]
 
-    def delete_access_logs(self, key: str) -> None:
+    @synchronaut()
+    async def delete_access_logs(self, key: str) -> None:
         with self._lock:
             self._conn.execute('DELETE FROM access_log WHERE key = ?',(key,))
 
-    def clear_access_logs(self) -> None:
+    @synchronaut()
+    async def clear_access_logs(self) -> None:
         with self._lock:
             self._conn.execute('DELETE FROM access_log')
 
-    def log_access_batch(self, entries: Set['AccessLogEntry']) -> None:
+    @synchronaut()
+    async def log_access_batch(self, entries: Set['AccessLogEntry']) -> None:
         if not entries:
             return
         with self._lock:
@@ -562,9 +650,10 @@ class SQLiteStore:
 
     # ——— Evictions API ——— 
 
-    def log_eviction(self, entry: EvictionLogEntry, batch: bool = True) -> None:
+    @synchronaut()
+    async def log_eviction(self, entry: EvictionLogEntry, batch: bool = True) -> None:
         if batch:
-            self.eviction_logger.log(entry)
+            await self.eviction_logger.log(entry)
         else:
             with self._lock:
                 self._conn.execute(
@@ -586,7 +675,9 @@ class SQLiteStore:
                         ) 
                 )
 
-    def eviction_logs(self, limit: int = 1000) -> list[EvictionLogEntry] | None:
+    @synchronaut()
+    async def eviction_logs(self, limit: int = 1000) -> list[EvictionLogEntry] | None:
+        await self.eviction_logger.flush()
         sql = 'SELECT * FROM eviction_log ORDER BY evicted_at DESC'
         params = () if limit is None else (limit,)
         if limit is not None:
@@ -596,11 +687,13 @@ class SQLiteStore:
             rows = cursor.fetchall()
         return [EvictionLogEntry(**dict(row)) for row in rows]
 
-    def clear_eviction_logs(self) -> None:
+    @synchronaut()
+    async def clear_eviction_logs(self) -> None:
         with self._lock:
             self._conn.execute('DELETE FROM eviction_log')
 
-    def log_eviction_batch(self, entries: Set['EvictionLogEntry']) -> None:
+    @synchronaut()
+    async def log_eviction_batch(self, entries: Set['EvictionLogEntry']) -> None:
         if not entries:
             return
         with self._lock:
@@ -627,11 +720,12 @@ class SQLiteStore:
 
     # ——— Experts-Only API ——— 
 
-    def custom_query(
+    @synchronaut()
+    async def custom_query(
         self, 
         custom_query: CustomQuery
     ) -> list[T] | list[dict[str, Any]] | int:
-        """
+        '''
             ⚠️ Experimental: Execute a custom SQL query against the backend store.
 
             This low-level utility enables direct querying of the underlying db.
@@ -645,7 +739,7 @@ class SQLiteStore:
                 return formats are subject to change. Use it only for development,
                 testing, or internal analysis where full control over the SQL 
                 query is needed.
-        """
+        '''
         with self._lock:
             cursor = self._conn.execute(custom_query.query, custom_query.params)
             if custom_query.autocommit:

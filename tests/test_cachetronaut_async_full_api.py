@@ -5,16 +5,16 @@ from datetime import timedelta
 import pytest
 import pytest_asyncio
 
-import cachetronomy.core.cache.cachetronaut_async as ct_async
+import cachetronomy.core.cache.cachetronaut as ct_async
 from cachetronomy.core.utils.time_utils import _now
+from cachetronomy.core.types.profiles import Profile
 
 
 # ---------------- fixture ---------------- #
 @pytest_asyncio.fixture
 async def async_cache(tmp_path_factory):
     db = tmp_path_factory.mktemp('db') / 'async.db'
-    c = ct_async.AsyncCachetronaut(db_path=str(db))
-    await c.init_async()
+    c = ct_async.Cachetronaut(db_path=str(db))
     yield c
     await c.shutdown()
 
@@ -31,6 +31,7 @@ async def test_set_get_delete(async_cache):
     await async_cache.set('α', 999)
     assert await async_cache.get('α') == 999
     await async_cache.evict('α')
+    await async_cache.delete('α')
     assert await async_cache.get('α') is None
     await async_cache.clear_all()
 
@@ -71,13 +72,16 @@ async def test_every_public_async_method_smoke(async_cache):
     # ── profiles: needs **full kwargs** to satisfy store signature
     await async_cache.get_profile('qa')  # create if absent
     await async_cache.update_active_profile(
-        time_to_live=7200,
-        tags=['qa'],
-        ttl_cleanup_interval=60,
-        memory_based_eviction=True,
-        free_memory_target=400.0,
-        memory_cleanup_interval=5,
-        max_items_in_memory=200,
+        Profile(
+            name='qa',
+            time_to_live=7200,
+            tags=['qa'],
+            ttl_cleanup_interval=60,
+            memory_based_eviction=True,
+            free_memory_target=400.0,
+            memory_cleanup_interval=5,
+            max_items_in_memory=200
+        )
     )
     await async_cache.list_profiles()
     await async_cache.delete_profile('qa')

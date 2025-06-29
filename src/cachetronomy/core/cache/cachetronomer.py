@@ -1,4 +1,6 @@
 import inspect
+
+from warnings import deprecated
 from functools import wraps
 from abc import ABC, abstractmethod
 from datetime import timedelta
@@ -23,7 +25,13 @@ from cachetronomy.core.utils.time_utils import _now
 P = ParamSpec("P")
 R = TypeVar("R")
 
-
+@deprecated(
+    '''
+    This is will not be supported as per the switch to synchronaut in v0.2.0.
+    Refer to documentation at: https://github.com/cachetronaut/cachetronomy for more information.
+    ''',
+    category=DeprecationWarning,
+)
 class Cachetronomer(ABC):
     def __init__(
         self,

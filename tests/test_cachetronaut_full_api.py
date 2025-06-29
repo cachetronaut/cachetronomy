@@ -52,13 +52,16 @@ def test_clear_all(cache):
 
 
 def test_clear_by_tags(cache):
+    cache.clear_all()
+    cache.clear_access_logs()
     cache.set('x', 1, tags=['one'])
     cache.set('y', 2, tags=['one', 'two'])
     cache.clear_by_tags(['one'], exact_match=True)
     assert cache.get('x') is None and cache.get('y') == 2
-    cache.clear_by_tags(['two'])
+    cache.clear_by_tags(['two'], exact_match=False)
     assert cache.get('y') is None
     cache.clear_all()
+    assert cache.memory_stats() == []
 
 
 def test_clear_by_profile(cache):

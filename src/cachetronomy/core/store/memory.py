@@ -1,6 +1,10 @@
 import threading
+
 from collections import OrderedDict
 from typing import Any, Callable
+
+from synchronaut import synchronaut
+
 from cachetronomy.core.access_frequency import (
     memory_key_count, 
     promote_key, 
@@ -14,10 +18,11 @@ class MemoryCache:
         self._lock = threading.RLock()
         self._on_evict = on_evict
 
-    def get(self, key: str) -> Any | None:
+    @synchronaut()
+    async def get(self, key: str) -> Any | None:
         with self._lock:
             value = self._store.get(key, None)
-            if value is None: 
+            if value is None:
                 return None
             self._store.pop(key)
             self._store[key] = value
@@ -32,15 +37,20 @@ class MemoryCache:
                 ev_key = min(self._store, key=lambda k: memory_key_count(k))
                 self.evict(ev_key)
 
-    def evict(self, key: str, reason: str = 'memory_eviction') -> None:
+    async def evict(self, key: str, reason: str = 'memory_eviction') -> None:
         with self._lock:
             value = self._store.pop(key, None)
-            if value is None: 
-                return
-            count = memory_key_count(key)
-            if self._on_evict: 
-                self._on_evict(key=key, value=value, count=count, reason=reason)
-            deregister_key(key)   
+        
+        if value is None:
+            return
+
+        count = memory_key_count(key)
+        if self._on_evict:
+            await self._on_evict(
+                key=key, value=value, count=count, reason=reason
+            )
+
+        deregister_key(key)
 
     def clear(self) -> None:
         with self._lock:
@@ -48,14 +58,14 @@ class MemoryCache:
             if self._on_evict:
                 for key, value in items:
                     count = memory_key_count(key)
-                    self._on_evict(key, value, count)
-                    deregister_key(key) 
+                    self._on_evict(key=key, value=value, count=count)
+                    deregister_key(key)
             self._store.clear()
 
     def stats(self) -> list[tuple[str, int]]:
         with self._lock:
             result = [(k, memory_key_count(k)) for k in self._store]
-        result.sort(key=lambda kv: kv[1], reverse=True) # sorted by hottest first:
+        result.sort(key=lambda kv: kv[1], reverse=True)
         return result
 
     def keys(self) -> list[str]:

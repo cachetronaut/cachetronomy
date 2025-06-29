@@ -1,7 +1,8 @@
 import threading
 import logging
 import asyncio
-import inspect
+
+from synchronaut import get_preferred_loop, call_any
 
 class TTLEvictionThread(threading.Thread):
     def __init__(
@@ -12,28 +13,19 @@ class TTLEvictionThread(threading.Thread):
     ):
         super().__init__(daemon=True, name='ttl_eviction_thread')
         self.cache = cache
-        self._loop = loop or asyncio.get_event_loop()
+        self.loop = loop or get_preferred_loop()
         self.ttl_cleanup_interval = ttl_cleanup_interval
         self._stop_event = threading.Event()
         logging.debug('TTLEvictionThread initialized.')
 
-    def _dispatch(self) -> None:
-        if self._loop.is_closed():
-            return
-        maybe = self.cache.clear_expired()
-        if inspect.isawaitable(maybe):
-            future = asyncio.run_coroutine_threadsafe(maybe, self._loop)
-            try:
-                future.result()
-            except Exception:
-                logging.exception('Error in TTL cleanup')
-
     def run(self) -> None:
         while not self._stop_event.wait(self.ttl_cleanup_interval):
+            if self.loop.is_closed():
+                return
             try:
-                self._dispatch()
+                call_any(self.cache.clear_expired)
             except Exception:
-                logging.exception('TTLEvictionThread cleanup failed')
+                logging.exception('TTL cleanup failed')
 
     def stop(self):
         self._stop_event.set()
