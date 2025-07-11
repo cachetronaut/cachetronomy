@@ -11,6 +11,7 @@ A lightweight, SQLite-backed cache for Python with first-class sync **and** asyn
 - **Flexible Serialization**: JSON, orjson, MsgPack out-of-the-box; swap in your own.  
 - **Decorator API**: wrap any function or coroutine to cache its results automatically.  
 - **CLI**: full-featured command-line interface for inspection and maintenance.
+
 ## 🚀 Installation
 ```bash
 pip install cachetronomy
@@ -18,16 +19,8 @@ pip install cachetronomy
 pip install cachetronomy[fast]
 ```
 ## 📦 Core Features
-### 🧑‍🚀 Cache clients
-```python
-# For Sync Client
-from cachetronomy import Cachetronaut
 
-# For Async Client
-from cachetronomy import AsyncCachetronaut
-```
-
-### 🎍 Decorator API
+### 🧑‍🚀 Cache clients + Decorator API
 ```python
 import asyncio
 import random
@@ -38,7 +31,8 @@ from itertools import cycle
 from rich.console import Console
 from rich.pretty import pprint # pretty indeed!
 
-from cachetronomy import Cachetronaut
+from cachetronomy import Cachetronaut # imports the client thay can be used both sync and async
+
 
 console = Console()
 
