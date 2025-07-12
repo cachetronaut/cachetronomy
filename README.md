@@ -31,7 +31,7 @@ from itertools import cycle
 from rich.console import Console
 from rich.pretty import pprint # pretty indeed!
 
-from cachetronomy import Cachetronaut # imports the client thay can be used both sync and async
+from cachetronomy import Cachetronaut # imports the client that can be used in both sync and async contexts 
 
 
 console = Console()
