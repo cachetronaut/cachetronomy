@@ -281,6 +281,12 @@ if __name__ == '__main__':
 | `set`                          | Store a value under `key` with optional TTL, tags, serializer, etc.                                        |
 | `get`                          | Retrieve a cached entry (or `None` if missing/expired), optionally unmarshaled into a Pydantic model.      |
 | `delete`                       | Remove the given key from the cache immediately.                                                           |
+| `get_many`                     | Retrieve multiple keys at once, returning a dict of key-value pairs.                                       |
+| `set_many`                     | Store multiple key-value pairs at once with optional TTL and tags.                                         |
+| `delete_many`                  | Delete multiple keys at once, returning the count of deleted keys.                                         |
+| `health_check`                 | Perform a health check, returning system status (db accessible, memory ok, key counts).                    |
+| `stats`                        | Get comprehensive cache statistics (total keys, hot keys, evictions, profile info).                        |
+| `get_or_compute`               | Get value from cache or compute it if missing (prevents cache stampede).                                   |
 | `evict`                        | Moves from in-RAM store → cold storage; can also`delete` from storage if expired + logs an eviction event. |
 | `store_keys`                   | Return a list of all keys currently persisted in cold storage.                                             |
 | `memory_keys`                  | Return a list of all keys currently held in the in-process memory cache.                                   |
