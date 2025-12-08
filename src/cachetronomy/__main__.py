@@ -649,6 +649,12 @@ auto_register_object(
         'memory_stats',
         'evict',
         'evict_all',
+        'get_or_compute',  # Excluded: has Callable parameter (not CLI-compatible)
+        'get_many',  # Excluded: dict types not CLI-compatible
+        'set_many',  # Excluded: dict types not CLI-compatible
+        'delete_many',  # Excluded: list types complex for CLI
+        'health_check',  # Excluded: dict return type
+        'stats',  # Excluded: dict return type
     },
     pydantic_bases=_PYDANTIC_BASES
 )
