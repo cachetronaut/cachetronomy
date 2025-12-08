@@ -259,6 +259,99 @@ if __name__ == '__main__':
     asyncio.run(async_main())
 ```
 
+## CLI Usage
+
+The `cachetronomy` command provides a full-featured CLI for cache inspection and maintenance.
+
+### Basic Commands
+
+```bash
+# Get help
+cachetronomy --help
+
+# Set a value with TTL
+cachetronomy set --time-to-live=300 my-key "my value"
+
+# Get a value
+cachetronomy get my-key
+
+# Delete a key
+cachetronomy delete my-key
+
+# List all keys
+cachetronomy all-keys
+
+# List profiles
+cachetronomy list-profiles
+
+# View store statistics
+cachetronomy store-stats
+
+# Clear expired entries
+cachetronomy clear-expired
+
+# Clear by tags
+cachetronomy clear-by-tags --tags='["api"]' --exact-match=false
+```
+
+### Common Operations
+
+**Set and retrieve values**:
+```bash
+# Store with TTL
+cachetronomy set --time-to-live=3600 user:1 '{"name": "Alice"}'
+
+# Retrieve
+cachetronomy get user:1
+
+# With tags
+cachetronomy set --tags='["users", "api"]' user:2 '{"name": "Bob"}'
+```
+
+**Profile management**:
+```bash
+# List available profiles
+cachetronomy list-profiles
+
+# Switch profile
+cachetronomy set-profile production
+
+# Get current profile
+cachetronomy get-profile
+```
+
+**Maintenance**:
+```bash
+# Clear expired entries
+cachetronomy clear-expired
+
+# Clear all cache
+cachetronomy clear-all
+
+# View access logs
+cachetronomy access-logs
+
+# View eviction logs
+cachetronomy eviction-logs
+```
+
+### Database Path
+
+By default, the CLI uses `cachetronomy.db` in the current directory. Specify a different path:
+
+```bash
+cachetronomy --db-path /path/to/cache.db list-profiles
+```
+
+### Note on CLI Limitations
+
+Some methods are not available via CLI due to type complexity:
+- `get_many`, `set_many`, `delete_many` - Use Python API for bulk operations
+- `health_check`, `stats` - Use Python API for monitoring dicts
+- `get_or_compute` - Use Python API for stampede protection
+
+These methods remain fully functional in the Python API.
+
 ## Core Mechanisms
 | Mechanism                    | How It Works                                                                                                              |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------|
