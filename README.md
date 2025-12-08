@@ -12,15 +12,15 @@ A lightweight, SQLite-backed cache for Python with first-class sync **and** asyn
 - **Decorator API**: wrap any function or coroutine to cache its results automatically.  
 - **CLI**: full-featured command-line interface for inspection and maintenance.
 
-## 🚀 Installation
+## Installation
 ```bash
 pip install cachetronomy
 # for orjson & msgpack support:
 pip install cachetronomy[fast]
 ```
-## 📦 Core Features
+## Quick Start
 
-### 🧑‍🚀 Cache clients + Decorator API
+**Note**: For simpler examples, see the `examples/` directory. The example below demonstrates core features with creative flair.
 ```python
 import asyncio
 import random
@@ -259,7 +259,7 @@ if __name__ == '__main__':
     asyncio.run(async_main())
 ```
 
-## ⚙ Core Mechanisms
+## Core Mechanisms
 | Mechanism                    | How It Works                                                                                                              |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------|
 | **Key Building**             | Generates a consistent, order-independent key from the function name and its arguments.                                   |
@@ -271,7 +271,7 @@ if __name__ == '__main__':
 | **Manual Eviction**          | Helper methods allow you to remove individual keys or groups of entries whenever you choose.                              |
 | **Hot-Key Tracking**         | Records how frequently each key is accessed so the system knows which items are most important to keep.                   |
 | **Serialization**            | Converts data into a compact binary or JSON-like format before writing it to storage, and remembers which format it used. |
-# 🗨 Cachetronomy API
+# API Reference
 > **Note:** Each `cachetronomy` CLI invocation is a fresh, stateless process, so in-memory features (hot-key tracking, memory-pressure eviction, etc.) aren’t available. All persistent, “cold-storage” operations (get/set against the SQLite store, TTL cleanup, access-log and eviction-log reporting, profiles, etc.) still work as expected.
 
 | Method                         | Description                                                                                                |
@@ -308,9 +308,11 @@ if __name__ == '__main__':
 | `delete_profile`               | Remove a named profile from the `profiles` table.                                                          |
 | `list_profiles`                | List all saved profiles available in the `profiles` table.                                                 |
 
-# 🔭 Cachetronomy Tables
-Here's a breakdown of the **tables and columns** you will have in your `cachetronomy` cache.
-### 🗃️ `cache`
+# Database Schema
+
+## Tables Overview
+
+### `cache` Table
 Stores serialized cached objects, their TTL metadata, tags, and versioning.
 
 |Column            | Type        | Description                                         |
@@ -322,7 +324,7 @@ Stores serialized cached objects, their TTL metadata, tags, and versioning.
 |`tags`            | TEXT        | Serialized list of tags (usually JSON or CSV format)|
 |`version`         | INTEGER     | Version number for schema evolution/versioning      |
 |`saved_by_profile`| TEXT        | Profile name that created or last updated this entry|
-### 🧾 `access_log`
+### `access_log` Table
 Tracks when a key was accessed and how frequently.
 
 | Column                     | Type         | Description                       |
@@ -331,7 +333,7 @@ Tracks when a key was accessed and how frequently.
 | `access_count`             | INTEGER      | Number of times accessed          |
 | `last_accessed`            | DATETIME     | Most recent access time           |
 | `last_accessed_by_profile` | TEXT         | Profile that made the last access |
-### 🚮 `eviction_log`
+### `eviction_log` Table
 Tracks key eviction events and their reasons (manual, TTL, memory, tag).
 
 | Column               | Type            | Description                                                 |
@@ -342,7 +344,7 @@ Tracks key eviction events and their reasons (manual, TTL, memory, tag).
 | `reason`             | TEXT            | Reason string (`'manual_eviction'`, `'time_eviction'`, etc.)|
 | `last_access_count`  | INTEGER         | Final recorded access count before eviction                 |
 | `evicted_by_profile` | TEXT            | Name of profile that triggered the eviction                 |
-### 📋 `profiles`
+### `profiles` Table
 Holds saved profile configurations for future reuse.
 
 | Column                    | Type         | Description                                       |
@@ -355,7 +357,7 @@ Holds saved profile configurations for future reuse.
 | `memory_cleanup_interval` | INTEGER      | How often to check system memory                  |
 | `max_items_in_memory`     | INTEGER      | Cap for in-RAM cache                              |
 | `tags`                    | TEXT         | Default tags for all entries in this profile      |
-## 🧪 Development & Testing
+## Development & Testing
 ```bash
 git clone https://github.com/cachetronaut/cachetronomy.git
 cd cachetronomy
@@ -363,9 +365,9 @@ pip install -r requirements-dev.txt
 pytest
 ```
 There is **100% parity** between sync and async clients via [synchronaut](https://github.com/cachetronaut/synchronaut); coverage includes TTL, memory eviction, decorator api, profiles, serialization and logging.
-## 🤝 Contributing
+## Contributing
 1. Fork & branch
 2. Add tests for new features
 3. Submit a PR
-## 📄 License
+## License
 MIT — see [LICENSE](https://github.com/cachetronaut/cachetronomy/blob/main/LICENSE) for details.

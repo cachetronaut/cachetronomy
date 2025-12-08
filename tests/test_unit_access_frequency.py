@@ -3,6 +3,7 @@ from cachetronomy.core.access_frequency import (
     hot_keys,
     memory_key_count,
     register_callback,
+    deregister_key,
 )
 
 def test_promote_and_counts():
@@ -21,3 +22,20 @@ def test_callback_fires(monkeypatch):
     register_callback(lambda k: fired.setdefault(k, 0) or fired.update({k: 1}))
     promote_key('gamma')
     assert fired == {'gamma': 1}
+
+def test_callback_exception_swallowed():
+    """Test that exceptions in callbacks are swallowed."""
+    def bad_callback(key: str):
+        raise RuntimeError("Callback error")
+
+    register_callback(bad_callback)
+    # This should not raise even though callback raises
+    promote_key('test_key')
+    assert memory_key_count('test_key') == 1
+
+def test_deregister_key():
+    """Test that deregister_key removes a key."""
+    promote_key('to_remove')
+    assert memory_key_count('to_remove') > 0
+    deregister_key('to_remove')
+    assert memory_key_count('to_remove') == 0

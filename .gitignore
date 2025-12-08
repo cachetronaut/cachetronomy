@@ -47,6 +47,7 @@ Pipfile.lock
 # Test data / databases
 *cachetronomy.db*
 dummy_data.json
+:memory:*
 
 # local stress tests / fixtures
 tests/stress_*.py
@@ -57,3 +58,6 @@ tests/profiles.yaml
 
 # Logs
 *.log
+
+# LLM Helpers
+.claude/

@@ -3,14 +3,15 @@ import inspect
 import typing
 import textwrap
 import os
+import atexit
 
 from typing import (
-    Any, 
-    Callable, 
+    Any,
+    Callable,
     Literal,
     Union,
-    get_args, 
-    get_origin, 
+    get_args,
+    get_origin,
 )
 from types import UnionType, NoneType
 from pathlib import Path
@@ -29,6 +30,7 @@ from rich import box
 from rich.traceback import install
 from pydantic import BaseModel
 from synchronaut.utils import set_request_ctx
+from synchronaut import call_any
 
 from cachetronomy import Cachetronaut
 from cachetronomy import Profile
@@ -43,13 +45,12 @@ from cachetronomy.core.types.schemas import (
 install()
 console = Console()
 app = typer.Typer(
-    help='Cachetronomy CLI', 
+    help='Cachetronomy CLI',
     add_completion=True,
     pretty_exceptions_show_locals=True,
     pretty_exceptions_short=True,
     chain=True
 )
-cachetronaut = Cachetronaut()
 _SIMPLE_SCALARS = (str, int, float, bool, Path, Any)
 _NONE = type(None)
 _PYDANTIC_BASES = (
@@ -224,11 +225,14 @@ def normalize(cell: Any):
         return loc.strftime('%Y-%m-%d %H:%M:%S %Z')
     return cell
 
-def to_output(obj: Any, command_name: str | None = None) -> None:
-    profile_name = cachetronaut.profile.name
-    if command_name:
-        norm_command_name = command_name.replace('_','-')
-        title = f'{profile_name} cachetronaut → {norm_command_name}'
+def to_output(obj: Any, cachetronaut: Cachetronaut | None = None, command_name: str | None = None) -> None:
+    if cachetronaut:
+        profile_name = cachetronaut.profile.name
+        if command_name:
+            norm_command_name = command_name.replace('_','-')
+            title = f'{profile_name} cachetronaut → {norm_command_name}'
+    else:
+        title = None
     norm_rows = []
     output_style = Style(color='#8338EC', bold=True, encircle=True)
 
@@ -355,6 +359,15 @@ def auto_register_object(
         new_params: list[inspect.Parameter] = []
         model_maps: dict[str, tuple[type, list[str]]] = {}
 
+        # Add typer.Context as first parameter for all commands
+        new_params.append(
+            inspect.Parameter(
+                name='ctx',
+                kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                annotation=typer.Context
+            )
+        )
+
         for param in sig.parameters.values():
             if param.name == 'self':
                 continue
@@ -406,7 +419,7 @@ def auto_register_object(
                                 help=field_info.description,
                                 show_choices=True,
                             )
-                            kind = inspect.Parameter.POSITIONAL_ONLY
+                            kind = inspect.Parameter.POSITIONAL_OR_KEYWORD
                         else:
                             if field_info.default_factory is not None:
                                 default_val = field_info.default_factory()
@@ -496,7 +509,7 @@ def auto_register_object(
                         help=help_text,
                         show_default=False,
                     )
-                    kind = inspect.Parameter.POSITIONAL_ONLY
+                    kind = inspect.Parameter.POSITIONAL_OR_KEYWORD
                 else:
                     is_bool = (
                         param.annotation is bool
@@ -540,30 +553,35 @@ def auto_register_object(
 
         @wraps(member.__func__)
         def wrapper(
+            ctx: typer.Context,
             *args,
-            __member=member,
+            __member_name=name,
             __model_maps=model_maps,
             __pydantic_names=pydantic_param_names,
             **kwargs
         ):
+            # Get the cachetronaut instance from context
+            cachetronaut = ctx.obj['cachetronaut']
+            actual_member = getattr(cachetronaut, __member_name)
+
             # unpack any Pydantic models
             new_args = list(args)
             for param_name in __pydantic_names:
                 model_cls, fields = __model_maps[param_name]
                 model_kwargs = {field: kwargs.pop(field) for field in fields}
                 clean_model_kwargs = {
-                    key: value for key, value in model_kwargs.items() 
+                    key: value for key, value in model_kwargs.items()
                     if value is not None
                 }
                 new_args.append(model_cls(**clean_model_kwargs))
 
-            result = __member(*new_args, **kwargs)
+            result = actual_member(*new_args, **kwargs)
             if result is None or result == []:
                 result_obj = dict(**kwargs)
                 result_obj.update({'result': None})
-                return to_output(result_obj, command_name=__member.__name__)
+                return to_output(result_obj, cachetronaut=cachetronaut, command_name=__member_name)
 
-            return to_output(result, command_name=__member.__name__)
+            return to_output(result, cachetronaut=cachetronaut, command_name=__member_name)
 
         wrapper.__signature__ = sig.replace(parameters=new_params)
         wrapper.__annotations__ = {
@@ -578,14 +596,24 @@ def auto_register_object(
 def _init_session(
         ctx: typer.Context,
         db_path: str = typer.Option(
-                f'{os.path.basename(os.getcwd())}.db', 
-                '--db-path', 
+                f'{os.path.basename(os.getcwd())}.db',
+                '--db-path',
                 '-db',
                 help='Path to the persistent data store; defaults to your CWD'
             )
     ):
-    ctx.obj = {'cachetronaut': Cachetronaut(db_path=db_path)}
+    cachetronaut = Cachetronaut(db_path=db_path)
+    ctx.obj = {'cachetronaut': cachetronaut}
     set_request_ctx({'cli_mode': True})
+
+    # Register cleanup handler to ensure proper shutdown
+    def cleanup():
+        try:
+            call_any(cachetronaut.shutdown)
+        except (RuntimeError, Exception):
+            # Event loop may already be closed, which is fine for CLI usage
+            pass
+    atexit.register(cleanup)
 
     profile, db_path = cachetronaut.store.get_config('active_profile')
     if profile and db_path:
@@ -594,7 +622,7 @@ def _init_session(
     cachetronaut.profile = profile
     cachetronaut.store.access_logger.batch_size = 1
     cachetronaut.store.eviction_logger.batch_size = 1
-    
+
     if ctx.invoked_subcommand is None:
         main()
 
@@ -610,18 +638,22 @@ def main():
     '''
     to_output(textwrap.dedent(welcome_message))
 
+# Create a temporary instance for introspection only (not used at runtime)
+_introspection_instance = Cachetronaut()
 auto_register_object(
-    app, 
-    cachetronaut,
+    app,
+    _introspection_instance,
     exclude={
-        'shutdown', 
-        'memory_keys', 
-        'memory_stats', 
-        'evict', 
+        'shutdown',
+        'memory_keys',
+        'memory_stats',
+        'evict',
         'evict_all',
     },
     pydantic_bases=_PYDANTIC_BASES
 )
+# Note: We don't clean up the introspection instance as it's only used for
+# method signature inspection at module load time
 
 if __name__ == '__main__':
     app()

@@ -212,9 +212,18 @@ class SQLiteStore:
             return 'default', str(self.db_path)
 
     def close(self):
-        self.access_logger.stop()
-        self.eviction_logger.stop()
+        call_any(self.access_logger.stop)
+        call_any(self.eviction_logger.stop)
         self._conn.close()
+
+    def __enter__(self):
+        '''Context manager entry.'''
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        '''Context manager exit - ensures cleanup.'''
+        self.close()
+        return False
 
 
     # ——— Cache API ———

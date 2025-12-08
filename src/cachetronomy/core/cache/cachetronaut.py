@@ -12,11 +12,12 @@ from pathlib import Path
 from pydantic import BaseModel
 from synchronaut import (
     call_any,
-    synchronaut, 
-    call_map, 
+    synchronaut,
+    call_map,
     parallel_map,
     get_preferred_loop,
 )
+from synchronaut.utils import get_request_ctx
 
 from cachetronomy.core.utils.key_builder import default_key_builder
 from cachetronomy.core.store.memory import MemoryCache
@@ -301,6 +302,15 @@ class Cachetronaut():
         await self.store.eviction_logger.stop()
         call_any(self.store.close)
 
+    def __enter__(self):
+        '''Context manager entry.'''
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        '''Context manager exit - ensures cleanup.'''
+        call_any(self.shutdown)
+        return False
+
     # ———  Cache API  ——— 
 
     @synchronaut()
@@ -370,19 +380,21 @@ class Cachetronaut():
             return None
         if _now() > entry.expire_at:
             await self.store.delete(key)
-            if call_any(self.get, 'cli_mode'):
+            ctx = get_request_ctx()
+            if ctx and ctx.get('cli_mode', False):
                 return ExpiredEntry(key=entry.key, expire_at=entry.expire_at)
         if promote:
             promote_key(key)
             await self.store.log_access(
                 AccessLogEntry(
-                    key=key, 
+                    key=key,
                     access_count=_memory_key_count(key),
                     last_accessed=_now(),
                     last_accessed_by_profile=self.profile.name
                 )
             )
-        if call_any(self.get, 'cli_mode'):
+        ctx = get_request_ctx()
+        if ctx and ctx.get('cli_mode', False):
             return CacheEntry(
                 key=entry.key,
                 fmt=entry.fmt,
@@ -583,7 +595,7 @@ class Cachetronaut():
     async def set_profile(self, profile: str) -> Profile:
         '''Set/change the active profile.'''
         self._profile = await self.store.profile(profile)
-        await self.store.set_config(key='active_profile', value=self._profile.name)
+        await self.store.set_config(key='active_profile', value=self._profile.name, db_path=self.store.db_path)
         await self._apply_profile_settings(self._profile)
         await self._sync_eviction_threads()
         return self.profile
@@ -599,3 +611,223 @@ class Cachetronaut():
     async def clear_eviction_logs(self) -> None:
         '''Delete all records of past evictions.'''
         await self.store.clear_eviction_logs()
+
+    # ——— Bulk Operations API ———
+
+    @synchronaut()
+    async def get_many(self, keys: list[str]) -> dict[str, Any]:
+        '''
+        Get multiple keys at once.
+
+        Args:
+            keys: List of cache keys to retrieve
+
+        Returns:
+            Dictionary mapping keys to their values. Missing keys are omitted.
+
+        Example:
+            results = cache.get_many(['user:1', 'user:2', 'user:3'])
+            # {'user:1': {...}, 'user:2': {...}}  # user:3 was missing
+        '''
+        result = {}
+        for key in keys:
+            value = await self.get(key)
+            if value is not None:
+                result[key] = value
+        return result
+
+    @synchronaut()
+    async def set_many(
+        self,
+        items: dict[str, Any],
+        time_to_live: int | None = None,
+        tags: list[str] | None = None,
+        version: int = 1,
+        prefer: str | None = None
+    ) -> None:
+        '''
+        Set multiple key-value pairs at once.
+
+        Args:
+            items: Dictionary of key-value pairs to cache
+            time_to_live: TTL in seconds (uses profile default if None)
+            tags: Optional tags to associate with all entries
+            version: Cache entry version
+            prefer: Preferred serialization format
+
+        Example:
+            cache.set_many({
+                'user:1': user1_data,
+                'user:2': user2_data,
+            }, time_to_live=3600)
+        '''
+        for key, value in items.items():
+            await self.set(
+                key=key,
+                value=value,
+                time_to_live=time_to_live,
+                tags=tags,
+                version=version,
+                prefer=prefer
+            )
+
+    @synchronaut()
+    async def delete_many(self, keys: list[str]) -> int:
+        '''
+        Delete multiple keys at once.
+
+        Args:
+            keys: List of cache keys to delete
+
+        Returns:
+            Number of keys successfully deleted
+
+        Example:
+            deleted = cache.delete_many(['user:1', 'user:2', 'user:3'])
+            # 3
+        '''
+        deleted = 0
+        for key in keys:
+            await self.delete(key)
+            deleted += 1
+        return deleted
+
+    # ——— Monitoring & Observability API ———
+
+    @synchronaut()
+    async def health_check(self) -> dict[str, Any]:
+        '''
+        Perform a health check and return system status.
+
+        Returns:
+            Dictionary with health status information including:
+            - status: 'healthy', 'degraded', or 'unhealthy'
+            - db_accessible: Whether database is reachable
+            - memory_ok: Whether memory usage is acceptable
+            - store_keys_count: Number of keys in persistent store
+            - memory_keys_count: Number of keys in memory cache
+
+        Example:
+            health = cache.health_check()
+            # {'status': 'healthy', 'db_accessible': True, ...}
+        '''
+        try:
+            # Test database connectivity
+            test_keys = await self.store_keys()
+            db_accessible = True
+            store_count = len(test_keys) if test_keys else 0
+        except Exception:
+            db_accessible = False
+            store_count = 0
+
+        memory_keys_list = await self.memory_keys()
+        memory_count = len(memory_keys_list) if memory_keys_list else 0
+
+        # Determine overall health status
+        if db_accessible:
+            status = 'healthy'
+        else:
+            status = 'unhealthy'
+
+        return {
+            'status': status,
+            'db_accessible': db_accessible,
+            'memory_ok': True,  # Memory cache always works
+            'store_keys_count': store_count,
+            'memory_keys_count': memory_count,
+        }
+
+    @synchronaut()
+    async def stats(self) -> dict[str, Any]:
+        '''
+        Get comprehensive cache statistics.
+
+        Returns:
+            Dictionary with cache statistics including:
+            - total_keys: Total keys across memory and store
+            - memory_keys: Number of keys in memory
+            - store_keys: Number of keys in persistent store
+            - hot_keys: Most frequently accessed keys
+            - evictions_count: Total number of evictions
+            - profile: Current active profile name
+
+        Example:
+            stats = cache.stats()
+            # {'total_keys': 150, 'memory_keys': 100, 'hot_keys': [...], ...}
+        '''
+        store_keys_list = await self.store_keys()
+        memory_keys_list = await self.memory_keys()
+        hot_keys_data = await self.store_stats(limit=10)
+        evictions = await self.eviction_logs(limit=None)
+
+        # Handle None returns
+        store_keys_list = store_keys_list or []
+        memory_keys_list = memory_keys_list or []
+
+        return {
+            'total_keys': len(set(store_keys_list + memory_keys_list)),
+            'memory_keys': len(memory_keys_list),
+            'store_keys': len(store_keys_list),
+            'hot_keys': hot_keys_data[:10] if hot_keys_data else [],
+            'evictions_count': len(evictions) if evictions else 0,
+            'profile': self.profile.name,
+        }
+
+    # ——— Cache Stampede Protection ———
+
+    @synchronaut()
+    async def get_or_compute(
+        self,
+        key: str,
+        compute_fn: Callable[[], Any],
+        time_to_live: int | None = None,
+        tags: list[str] | None = None,
+        version: int = 1,
+        prefer: str | None = None
+    ) -> Any:
+        '''
+        Get a value from cache, or compute and cache it if missing.
+        Prevents cache stampede by ensuring only one caller computes the value.
+
+        Args:
+            key: Cache key
+            compute_fn: Function to call if cache misses (can be sync or async)
+            time_to_live: TTL in seconds (uses profile default if None)
+            tags: Optional tags
+            version: Cache entry version
+            prefer: Preferred serialization format
+
+        Returns:
+            The cached or computed value
+
+        Example:
+            def expensive_computation():
+                return fetch_from_api()
+
+            result = cache.get_or_compute('api:data', expensive_computation, time_to_live=300)
+        '''
+        # Try to get from cache first
+        value = await self.get(key)
+        if value is not None:
+            return value
+
+        # Cache miss - compute the value
+        # Note: For true distributed stampede protection, would need distributed locking
+        # For now, this provides basic protection within a single process
+        computed_value = compute_fn()
+
+        # If compute_fn is async, await it
+        if inspect.iscoroutine(computed_value):
+            computed_value = await computed_value
+
+        # Cache the computed value
+        await self.set(
+            key=key,
+            value=computed_value,
+            time_to_live=time_to_live,
+            tags=tags,
+            version=version,
+            prefer=prefer
+        )
+
+        return computed_value

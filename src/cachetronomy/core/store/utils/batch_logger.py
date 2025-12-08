@@ -77,7 +77,9 @@ class BatchLogger():
     @synchronaut()
     async def stop(self):
         self._stopped.set()
-        if self._flush_task:
-            self._flush_task
+        if self._flush_task and not self._flush_task.done():
+            # Cancel the task and wait for it to finish on its own loop
+            self._flush_task.cancel()
+            # Don't await - just let it cancel, as it may be on a different loop
             self._flush_task = None
         await self.flush()
