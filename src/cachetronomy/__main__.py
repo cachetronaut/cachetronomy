@@ -595,11 +595,11 @@ def auto_register_object(
 @app.callback(invoke_without_command=True)
 def _init_session(
         ctx: typer.Context,
-        db_path: str = typer.Option(
-                f'{os.path.basename(os.getcwd())}.db',
+        db_path: str | None = typer.Option(
+                None,
                 '--db-path',
                 '-db',
-                help='Path to the persistent data store; defaults to your CWD'
+                help='Path to the persistent data store; defaults to cachetronomy.db'
             )
     ):
     cachetronaut = Cachetronaut(db_path=db_path)
