@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1]
+
+### Security
+- Raised dependency floors to pull in upstream fixes flagged by Dependabot:
+  `python-dotenv>=1.2.2` (symlink follow in `set_key`, CVE-2026-28684) and
+  `orjson>=3.11.6` (unbounded recursion on deeply nested JSON, CVE-2025-67221).
+- Refreshed `uv.lock` so transitive `idna` (>=3.17, CVE-2026-45409) and
+  `pygments` (>=2.20.0, CVE-2026-4539) resolve to patched releases, and the dev
+  `pytest` floor moved to `>=9.0.3` (CVE-2025-71176).
+
 ## [0.4.0]
 
 ### Fixed
