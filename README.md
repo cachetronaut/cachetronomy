@@ -1,7 +1,7 @@
 # Cachetronomy
 A lightweight, SQLite-backed cache for Python with first-class sync **and** async support. Features TTL and memory-pressure eviction, persistent hot-key tracking, pluggable serialization, a decorator API and a CLI.
 
-[![Package Version](https://img.shields.io/pypi/v/cachetronomy.svg)](https://pypi.org/project/cachetronomy/) | [![Supported Python Versions](https://img.shields.io/badge/Python->=3.9-blue?logo=python&logoColor=white)](https://pypi.org/project/cachetronomy/) | [![PyPI Downloads](https://static.pepy.tech/badge/cachetronomy)](https://pepy.tech/projects/cachetronomy) | ![License](https://img.shields.io/github/license/cachetronaut/cachetronomy) | ![GitHub Last Commit](https://img.shields.io/github/last-commit/cachetronaut/cachetronomy)  | ![Status](https://img.shields.io/pypi/status/cachetronomy) | [![Dynamic TOML Badge](https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fcachetronaut%2Fcachetronomy%2Frefs%2Fheads%2Fmain%2Fpyproject.toml&query=project.version&prefix=v&style=flat&logo=github&logoColor=8338EC&label=cachetronomy&labelColor=silver&color=8338EC)](https://github.com/cachetronaut/cachetronomy)
+[![Package Version](https://img.shields.io/pypi/v/cachetronomy.svg)](https://pypi.org/project/cachetronomy/) | [![Supported Python Versions](https://img.shields.io/badge/Python->=3.10-blue?logo=python&logoColor=white)](https://pypi.org/project/cachetronomy/) | [![PyPI Downloads](https://static.pepy.tech/badge/cachetronomy)](https://pepy.tech/projects/cachetronomy) | ![License](https://img.shields.io/github/license/cachetronaut/cachetronomy) | ![GitHub Last Commit](https://img.shields.io/github/last-commit/cachetronaut/cachetronomy)  | ![Status](https://img.shields.io/pypi/status/cachetronomy) | [![Dynamic TOML Badge](https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fcachetronaut%2Fcachetronomy%2Frefs%2Fheads%2Fmain%2Fpyproject.toml&query=project.version&prefix=v&style=flat&logo=github&logoColor=8338EC&label=cachetronomy&labelColor=silver&color=8338EC)](https://github.com/cachetronaut/cachetronomy)
 
 ## Why Cachetronomy?
 - **Persistent**: stores entries in SQLite; survives restarts—no external server.  
@@ -348,7 +348,7 @@ cachetronomy --db-path /path/to/cache.db list-profiles
 Some methods are not available via CLI due to type complexity:
 - `get_many`, `set_many`, `delete_many` - Use Python API for bulk operations
 - `health_check`, `stats` - Use Python API for monitoring dicts
-- `get_or_compute` - Use Python API for stampede protection
+- `get_or_compute` - Use Python API for read-through caching
 
 These methods remain fully functional in the Python API.
 
@@ -372,14 +372,14 @@ These methods remain fully functional in the Python API.
 | `__init__`                     | Construct a new cache client with the given database path and settings.                                    |
 | `shutdown`                     | Gracefully stop eviction threads and close the underlying                                                  |
 | `set`                          | Store a value under `key` with optional TTL, tags, serializer, etc.                                        |
-| `get`                          | Retrieve a cached entry (or `None` if missing/expired), optionally unmarshaled into a Pydantic model.      |
+| `get`                          | Retrieve a cached entry, optionally unmarshaled into a Pydantic model. Returns `default` (`None`) on a miss; pass a sentinel as `default` to tell a real miss apart from a cached `None`. |
 | `delete`                       | Remove the given key from the cache immediately.                                                           |
 | `get_many`                     | Retrieve multiple keys at once, returning a dict of key-value pairs.                                       |
 | `set_many`                     | Store multiple key-value pairs at once with optional TTL and tags.                                         |
 | `delete_many`                  | Delete multiple keys at once, returning the count of deleted keys.                                         |
-| `health_check`                 | Perform a health check, returning system status (db accessible, memory ok, key counts).                    |
+| `health_check`                 | Perform a health check, returning system status (`healthy`/`degraded`/`unhealthy`, db accessible, memory ok, key counts). |
 | `stats`                        | Get comprehensive cache statistics (total keys, hot keys, evictions, profile info).                        |
-| `get_or_compute`               | Get value from cache or compute it if missing (prevents cache stampede).                                   |
+| `get_or_compute`               | Read-through helper: get a value from cache, or compute and cache it on a miss. (Does not provide stampede protection.) |
 | `evict`                        | Moves from in-RAM store → cold storage; can also`delete` from storage if expired + logs an eviction event. |
 | `store_keys`                   | Return a list of all keys currently persisted in cold storage.                                             |
 | `memory_keys`                  | Return a list of all keys currently held in the in-process memory cache.                                   |

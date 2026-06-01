@@ -1,6 +1,6 @@
 from typing import Protocol, Set
 
-from warnings import deprecated
+from typing_extensions import deprecated
 from cachetronomy.core.types.profiles import Profile
 from cachetronomy.core.types.schemas import (
     CacheEntry,

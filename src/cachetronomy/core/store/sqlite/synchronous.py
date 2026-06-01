@@ -301,6 +301,12 @@ class SQLiteStore:
         return [row['key'] for row in rows]
 
     @synchronaut()
+    async def count(self) -> int:
+        with self._lock:
+            cursor = self._conn.execute('SELECT COUNT(*) FROM cache')
+            return int(cursor.fetchone()[0])
+
+    @synchronaut()
     async def items(self, limit: int | None) -> list[CacheEntry] | None:
         with self._lock:
             cursor = self._conn.execute('''
@@ -700,6 +706,13 @@ class SQLiteStore:
     async def clear_eviction_logs(self) -> None:
         with self._lock:
             self._conn.execute('DELETE FROM eviction_log')
+
+    @synchronaut()
+    async def eviction_count(self) -> int:
+        await self.eviction_logger.flush()
+        with self._lock:
+            cursor = self._conn.execute('SELECT COUNT(*) FROM eviction_log')
+            return int(cursor.fetchone()[0])
 
     @synchronaut()
     async def log_eviction_batch(self, entries: Set['EvictionLogEntry']) -> None:

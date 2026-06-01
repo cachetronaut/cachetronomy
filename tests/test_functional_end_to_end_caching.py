@@ -62,10 +62,11 @@ def fake_store(monkeypatch):
             return self._store[k]
         def __setitem__(self, k, v):
             self._store[k] = v
-        def set(self, k, v):
+        def set(self, k, v, expire_at=None):
             self.__setitem__(k, v)
         async def get(self, key):
-            return self._store.get(key, None)
+            from cachetronomy.core.store.memory import MISS
+            return self._store.get(key, MISS)
         def stats(self):
             return {'size': len(self._store)}
     import cachetronomy.core.cache.cachetronaut as ctr

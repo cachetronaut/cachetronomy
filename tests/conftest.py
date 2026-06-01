@@ -12,8 +12,7 @@ import pytest
 @pytest.fixture(scope='session')
 def event_loop():
     import uvloop
-    uvloop.install()
-    loop = asyncio.new_event_loop()
+    loop = uvloop.new_event_loop()
     yield loop
     loop.close()
 
@@ -57,6 +56,17 @@ class _DummyThread:
     def start(self): ...
     def stop(self): ...
     def join(self): ...
+
+@pytest.fixture(autouse=True)
+def _reset_access_frequency():
+    '''The hot-key tracker is a module-level singleton; isolate tests from each
+    other so leftover counts from one test cannot skew another.'''
+    import cachetronomy.core.access_frequency as af
+
+    af._tracker._counts.clear()
+    yield
+    af._tracker._counts.clear()
+
 
 @pytest.fixture(autouse=True)
 def _swap_threads(monkeypatch):

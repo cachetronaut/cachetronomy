@@ -3,7 +3,7 @@ import psutil
 import logging
 import asyncio
 
-from synchronaut import synchronaut, get_preferred_loop
+from synchronaut import synchronaut, get_preferred_loop, call_any
 
 from cachetronomy.core.access_frequency import hot_keys
 
@@ -50,7 +50,9 @@ class MemoryEvictionThread(threading.Thread):
         for key in self._determine_keys_to_evict() or []:
             if key not in self.cache._memory._store:
                 continue
-            self.cache._memory.evict(key, reason='memory_eviction')
+            # Runs in a background thread: bridge to the (async) evict so the
+            # eviction-log callback is actually awaited rather than discarded.
+            call_any(self.cache._memory.evict, key, reason='memory_eviction')
             available_mb = self._available_mb()
             if available_mb > threshold_mb:
                 return

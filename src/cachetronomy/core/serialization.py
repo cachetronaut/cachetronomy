@@ -52,7 +52,9 @@ try:
         return msgpack.packb(obj, use_bin_type=True)
     def _msgpack_loads(data: bytes | str) -> Any:
         if isinstance(data, str):
-            data = data.encode()
+            # msgpack is binary; latin-1 is the only codec that maps str->bytes
+            # 1:1, preserving every byte from a prior `bytes.decode('latin-1')`.
+            data = data.encode('latin-1')
         return msgpack.unpackb(data, raw=False)
     _serializers['msgpack'] = (_msgpack_dumps, _msgpack_loads)
 except ImportError:

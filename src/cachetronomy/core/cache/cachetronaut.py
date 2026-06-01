@@ -4,6 +4,8 @@ import asyncio
 import sqlite3
 import os
 
+import psutil
+
 from datetime import timedelta
 from typing import Any, TypeVar, ParamSpec, Callable
 from functools import wraps
@@ -20,7 +22,7 @@ from synchronaut import (
 from synchronaut.utils import get_request_ctx
 
 from cachetronomy.core.utils.key_builder import default_key_builder
-from cachetronomy.core.store.memory import MemoryCache
+from cachetronomy.core.store.memory import MemoryCache, MISS
 from cachetronomy.core.store.sqlite.synchronous import SQLiteStore
 from cachetronomy.core.types.settings import CacheSettings
 from cachetronomy.core.types.profiles import Profile
@@ -71,6 +73,7 @@ class Cachetronaut():
         self._memory = MemoryCache(
             max_items=max_items_in_memory or None,
             on_evict=self._handle_eviction,
+            loop=self._loop,
         )
         self._profile = profile or Profile(name='default')
         register_callback(lambda key: 
@@ -106,15 +109,15 @@ class Cachetronaut():
                             and issubclass(sig.return_annotation, BaseModel)
                             else None)
 
-                    cached = await self.get(key, model=model)
-                    if cached is not None:
+                    cached = await self.get(key, model=model, default=MISS)
+                    if cached is not MISS:
                         return cached
 
                     value = await fn(*args, **kwargs)
 
                     await self.set(
                         key, value,
-                        time_to_live=time_to_live or self.time_to_live,
+                        time_to_live=time_to_live or self.profile.time_to_live,
                         version=version or getattr(
                             getattr(value, '__class__', None),
                             '__cache_version__', 1),
@@ -135,14 +138,14 @@ class Cachetronaut():
                             and issubclass(sig.return_annotation, BaseModel)
                             else None)
 
-                    cached = self.get(key, model=model)
-                    if cached is not None:
+                    cached = self.get(key, model=model, default=MISS)
+                    if cached is not MISS:
                         return cached
 
                     value = fn(*args, **kwargs)
                     self.set(
                         key, value,
-                        time_to_live=time_to_live or self.time_to_live,
+                        time_to_live=time_to_live or self.profile.time_to_live,
                         version=version or getattr(
                             getattr(value, '__class__', None),
                             '__cache_version__', 1),
@@ -211,6 +214,9 @@ class Cachetronaut():
         self.free_memory_target = profile.free_memory_target
         self.memory_cleanup_interval = profile.memory_cleanup_interval
         self.max_items_in_memory = profile.max_items_in_memory
+        # Propagate the cap to the actual in-memory store; otherwise the profile
+        # setting is silently ignored and the memory cache grows unbounded.
+        self._memory.max_items = profile.max_items_in_memory
         self.tags = profile.tags
         await self.store.update_profile_settings(**profile.model_dump())
         await self._sync_eviction_threads()
@@ -324,10 +330,10 @@ class Cachetronaut():
         prefer: str | None = None,
     ) -> CacheEntry:
         '''Cache an entry with optional TTL, version, tags, and serializer.'''
-        self._memory.set(key, value)
-
         ttl = time_to_live or self.profile.time_to_live
         expire_at = _now() + timedelta(seconds=ttl)
+        self._memory.set(key, value, expire_at=expire_at)
+
         version = version or getattr(
             getattr(value, '__class__', None), '__cache_version__', 1
         )
@@ -362,13 +368,18 @@ class Cachetronaut():
         key: str,
         model: BaseModel | None = None,
         promote: bool | None = True,
-    ) -> CacheEntry | ExpiredEntry | None:
-        '''Retrieve a cache entry by key (optionally as a Pydantic model) and promote to memory.'''
+        default: Any = None,
+    ) -> Any:
+        '''Retrieve a cache entry by key (optionally as a Pydantic model) and promote to memory.
+
+        Returns ``default`` (``None`` by default) on a miss. Pass a sentinel as
+        ``default`` to distinguish a genuine miss from a cached ``None``.
+        '''
         memory_data = await self._memory.get(key)
-        if memory_data is not None:
+        if memory_data is not MISS:
             await self.store.log_access(
                 AccessLogEntry(
-                    key=key, 
+                    key=key,
                     access_count=_memory_key_count(key),
                     last_accessed=_now(),
                     last_accessed_by_profile=self.profile.name
@@ -377,12 +388,14 @@ class Cachetronaut():
             return memory_data
         entry = await self.store.get(key)
         if not entry:
-            return None
+            return default
         if _now() > entry.expire_at:
             await self.store.delete(key)
+            await self._memory.evict(key, reason='time_eviction')
             ctx = get_request_ctx()
             if ctx and ctx.get('cli_mode', False):
                 return ExpiredEntry(key=entry.key, expire_at=entry.expire_at)
+            return default
         if promote:
             promote_key(key)
             await self.store.log_access(
@@ -406,7 +419,7 @@ class Cachetronaut():
             )
         payload, fmt = entry.data, entry.fmt
         store_data = (
-            deserialize(payload, fmt, model)
+            deserialize(payload, fmt, model_type=model)
             if inspect.isclass(model) and issubclass(model, BaseModel)
             else deserialize(payload, fmt)
         )
@@ -484,7 +497,7 @@ class Cachetronaut():
         removed = await self.store.get_keys_by_tags(tags, exact_match)
         for key in removed:
             await self._memory.evict(key, reason='tag_invalidation')
-            await self.store.clear_by_tags(tags, exact_match)
+        await self.store.clear_by_tags(tags, exact_match)
 
     @synchronaut()
     async def clear_by_profile(self, profile_name: str) -> None:
@@ -631,8 +644,8 @@ class Cachetronaut():
         '''
         result = {}
         for key in keys:
-            value = await self.get(key)
-            if value is not None:
+            value = await self.get(key, default=MISS)
+            if value is not MISS:
                 result[key] = value
         return result
 
@@ -686,10 +699,14 @@ class Cachetronaut():
             deleted = cache.delete_many(['user:1', 'user:2', 'user:3'])
             # 3
         '''
+        existing = set(await self.store_keys() or []) | set(
+            await self.memory_keys() or []
+        )
         deleted = 0
         for key in keys:
             await self.delete(key)
-            deleted += 1
+            if key in existing:
+                deleted += 1
         return deleted
 
     # ——— Monitoring & Observability API ———
@@ -712,10 +729,9 @@ class Cachetronaut():
             # {'status': 'healthy', 'db_accessible': True, ...}
         '''
         try:
-            # Test database connectivity
-            test_keys = await self.store_keys()
+            # Test database connectivity with a cheap COUNT.
+            store_count = await self.store.count()
             db_accessible = True
-            store_count = len(test_keys) if test_keys else 0
         except Exception:
             db_accessible = False
             store_count = 0
@@ -723,16 +739,29 @@ class Cachetronaut():
         memory_keys_list = await self.memory_keys()
         memory_count = len(memory_keys_list) if memory_keys_list else 0
 
+        # Flag memory pressure: if free RAM dips below the active profile's
+        # target the cache is still usable but eviction is working hard.
+        try:
+            available_mb = psutil.virtual_memory().available / (1024 ** 2)
+            total_mb = psutil.virtual_memory().total / (1024 ** 2)
+            target = self.profile.free_memory_target
+            threshold_mb = total_mb * target if target <= 1 else target
+            memory_ok = available_mb > threshold_mb
+        except Exception:
+            memory_ok = True
+
         # Determine overall health status
-        if db_accessible:
-            status = 'healthy'
-        else:
+        if not db_accessible:
             status = 'unhealthy'
+        elif not memory_ok:
+            status = 'degraded'
+        else:
+            status = 'healthy'
 
         return {
             'status': status,
             'db_accessible': db_accessible,
-            'memory_ok': True,  # Memory cache always works
+            'memory_ok': memory_ok,
             'store_keys_count': store_count,
             'memory_keys_count': memory_count,
         }
@@ -758,7 +787,7 @@ class Cachetronaut():
         store_keys_list = await self.store_keys()
         memory_keys_list = await self.memory_keys()
         hot_keys_data = await self.store_stats(limit=10)
-        evictions = await self.eviction_logs(limit=None)
+        evictions_count = await self.store.eviction_count()
 
         # Handle None returns
         store_keys_list = store_keys_list or []
@@ -769,7 +798,7 @@ class Cachetronaut():
             'memory_keys': len(memory_keys_list),
             'store_keys': len(store_keys_list),
             'hot_keys': hot_keys_data[:10] if hot_keys_data else [],
-            'evictions_count': len(evictions) if evictions else 0,
+            'evictions_count': evictions_count,
             'profile': self.profile.name,
         }
 
@@ -787,7 +816,11 @@ class Cachetronaut():
     ) -> Any:
         '''
         Get a value from cache, or compute and cache it if missing.
-        Prevents cache stampede by ensuring only one caller computes the value.
+
+        Note: this is a convenience read-through helper. It does NOT currently
+        provide cache-stampede protection — concurrent callers that all miss
+        will each run ``compute_fn``. Add your own locking if single-flight
+        semantics are required.
 
         Args:
             key: Cache key
@@ -807,13 +840,11 @@ class Cachetronaut():
             result = cache.get_or_compute('api:data', expensive_computation, time_to_live=300)
         '''
         # Try to get from cache first
-        value = await self.get(key)
-        if value is not None:
+        value = await self.get(key, default=MISS)
+        if value is not MISS:
             return value
 
-        # Cache miss - compute the value
-        # Note: For true distributed stampede protection, would need distributed locking
-        # For now, this provides basic protection within a single process
+        # Cache miss - compute the value.
         computed_value = compute_fn()
 
         # If compute_fn is async, await it

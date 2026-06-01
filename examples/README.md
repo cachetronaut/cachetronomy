@@ -109,13 +109,15 @@ user = get_user_by_id(123)
 cache.delete(f'user:{123}')
 ```
 
-### Pattern 3: Expensive Computation with Stampede Protection
+### Pattern 3: Expensive Computation (read-through)
 ```python
 def generate_report():
     # Expensive operation
     return calculate_monthly_statistics()
 
-# Multiple concurrent requests will only compute once
+# Computed on a miss, then served from cache on subsequent calls.
+# Note: get_or_compute does not provide stampede protection — concurrent
+# misses will each run the compute function.
 report = cache.get_or_compute(
     'monthly_report',
     generate_report,

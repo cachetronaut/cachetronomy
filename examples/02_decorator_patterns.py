@@ -84,7 +84,7 @@ result2 = asyncio.run(async_api_call('/users'))
 print(f"✓ Cached API call: {result2}")
 
 # === get_or_compute Pattern ===
-print("\n=== get_or_compute (Stampede Protection) ===")
+print("\n=== get_or_compute (read-through) ===")
 
 def compute_expensive_report():
     """Simulate expensive report generation."""

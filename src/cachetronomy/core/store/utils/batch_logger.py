@@ -39,7 +39,19 @@ class BatchLogger():
         if self._flush_task is not None and not self._flush_task.done():
             return
         self._stopped.clear()
-        self._flush_task = self._loop.create_task(self._run())
+        try:
+            running = asyncio.get_running_loop()
+        except RuntimeError:
+            running = None
+        # Only launch the periodic flusher on a genuinely running loop that will
+        # outlive this call (true async usage). Under the synchronous bridge the
+        # loop stops as soon as this coroutine returns, so scheduling a forever
+        # task there would just leak an un-awaited coroutine. In that case we
+        # rely on the explicit flush() calls (log overflow / stats / stop).
+        if running is not None:
+            self._flush_task = running.create_task(self._run())
+        else:
+            self._flush_task = None
 
 
     @synchronaut()

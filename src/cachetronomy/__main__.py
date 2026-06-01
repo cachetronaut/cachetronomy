@@ -2,7 +2,6 @@ from __future__ import annotations
 import inspect
 import typing
 import textwrap
-import os
 import atexit
 
 from typing import (

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import Any, Sequence, Type, TypeVar, override
+from typing import Any, Sequence, Type, TypeVar
 
 from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import SettingsConfigDict
